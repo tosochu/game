@@ -74,6 +74,15 @@ function DrawBackground() {
       MAP_WIDTH,
       1,
     );
+  for (var x = 0; x < MAP_WIDTH; x += BlockLength)
+    for (var y = 0; y < MAP_HEIGHT; y += BlockLength) {
+      drawCenterText(
+        windowWidth() / 2 + x - window.now.x + BlockLength / 2,
+        windowHeight() / 2 + y - window.now.y + BlockLength / 2 + 20 / 2,
+        '20px Consolas',
+        `${x / 200},${y / 200}`
+      );
+    }
 }
 
 function DrawTimeBoard() {

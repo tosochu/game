@@ -47,7 +47,7 @@ app.post('/api/create', (req, res) => {
     if (req.body.length <= 0) return;
     var roomId = randomString({ length: 4 });
     Rooms[roomId] = {
-        length: req.body.length,
+        length: req.body.length * 60,
         status: ROOM_STATUS.PLAYING,
         startAt: new Date().getTime(),
         player: [{
