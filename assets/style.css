@@ -1,0 +1,47 @@
+body{
+    margin: 0;
+}
+
+.window-left{
+    position: fixed;
+    left: 0;
+}
+.window-right{
+    position: fixed;
+    right: 0;
+}
+.window-top{
+    position: fixed;
+    top: 0;
+}
+.window-bottom{
+    position: fixed;
+    bottom: 0;
+}
+
+.timeBoard{
+    width: 150px;
+    background-color: #00000022;
+    border-radius: 10px;
+}
+.timeBoard-text{
+    margin: 5px 0;
+    text-align: center;
+    padding: 0 5px;
+}
+.timeBoard-time{
+    margin: 5px 10px;
+    width: 80%;
+    background-color: #00000022;
+    text-align: center;
+    padding: 3px;
+    border-radius: 5px;
+}
+.timeBoard-money{
+    margin: 5px 10px;
+    width: 80%;
+    background-color: #00000022;
+    text-align: right;
+    padding: 3px;
+    border-radius: 5px;
+}

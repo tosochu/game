@@ -11,6 +11,12 @@ const { readFileSync, existsSync, writeFileSync } = require('fs');
 const { ensureDirSync } = require('fs-extra');
 const randomString = require('random-string');
 
+const ROOM_STATUS = {
+    WATING: 1,
+    PLAYING: 2,
+    CLOSED: 3
+};
+
 Rooms = {};
 ensureDirSync('db');
 if (existsSync('db/room.json'))
@@ -28,19 +34,22 @@ app.all('*', (req, res, next) => {
 });
 app.use('/asset', express.static(path.join(__dirname, 'assets')));
 
-function getHomeHtml() {
-    var homeHtml = readFileSync('index.html', 'utf8');
-    return homeHtml;
-}
 app.get('/', (req, res) => {
-    res.send(getHomeHtml());
+    res.sendFile('assets/index.html', { root: __dirname });
 });
 app.post('/api/create', (req, res) => {
     var roomId = randomString({ length: 4 });
-    Rooms[roomId] = {};
+    Rooms[roomId] = { length: 0, status: ROOM_STATUS.WATING };
     saveRooms();
-    writeFileSync(`room/${roomID}.html`, );
     res.json({ roomId: roomId });
+});
+app.get('/room/:roomId', (req, res) => {
+    res.sendFile('assets/room.html', { root: __dirname });
+});
+app.post('/api/loadRoom', (req, res) => {
+    var { roomId } = req.body;
+    if (!Rooms[roomId]) res.json({ error: '房间不存在。' });
+    if (Rooms[roomId].)
 });
 
 app.listen(6876, () => {
