@@ -22,6 +22,41 @@ async function loadRoom(roomId) {
 
 $(window).resize(initWindow);
 
+function DrawArrow() {
+  var x = window.mouse.x - windowWidth() / 2,
+    y = window.mouse.y - windowHeight() / 2;
+  if (Math.hypot(x, y) <= 50) return;
+  var d = Math.asin(y / Math.hypot(x, y));
+  if (x < 0 && d > 0) d = Math.PI - d;
+  else if (x < 0 && d < 0) d = - Math.PI - d;
+  var greyness = 330 - Math.min(Math.hypot(x, y), 100) * 1.5;
+  setColor(`rgb(${greyness},${greyness},${greyness})`, 'transparent');
+  drawLine(
+    windowWidth() / 2,
+    windowHeight() / 2,
+    window.mouse.x,
+    window.mouse.y,
+    'round',
+    12,
+  );
+  drawLine(
+    window.mouse.x - Math.cos(d - Math.PI / 4) * 30,
+    window.mouse.y - Math.sin(d - Math.PI / 4) * 30,
+    window.mouse.x,
+    window.mouse.y,
+    'round',
+    12,
+  );
+  drawLine(
+    window.mouse.x - Math.cos(d + Math.PI / 4) * 30,
+    window.mouse.y - Math.sin(d + Math.PI / 4) * 30,
+    window.mouse.x,
+    window.mouse.y,
+    'round',
+    12,
+  );
+}
+
 function DrawBackground() {
   setColor('transparent', '#aaa');
   const BlockLength = 200;
@@ -55,16 +90,15 @@ function DrawPlayer() {
     drawCircle(
       windowWidth() / 2 + player.x - window.now.x,
       windowHeight() / 2 + player.y - window.now.y,
-      10,
+      20,
     );
   });
 }
 
 function Draw() {
-  var canvas = $("#gameCanvas")[0];
-  this.ctx = canvas.getContext("2d");
   this.ctx.clearRect(0, 0, windowWidth(), windowHeight());
   if (window.gameStage == GAME_STAGE.PLAYING) {
+    DrawArrow();
     DrawBackground();
     DrawTimeBoard();
     DrawPlayer();
@@ -75,24 +109,12 @@ $(document).ready(() => {
   initWindow();
   initMap();
   window.gameStage = GAME_STAGE.LOADING_ROOM;
-  // window.gametime = prompt("Input the game time");
-  window.gameLength = 100;
-  window.gameStartTime = new Date().getTime();
   window.money = 0;
+  var canvas = $("#gameCanvas")[0];
+  canvas.addEventListener('mousemove', e => {
+    window.mouse = { x: e.clientX, y: e.clientY };
+  });
+  this.ctx = canvas.getContext("2d");
   setInterval(Draw, 50);
   loadRoom(window.location.pathname.split('/')[2]);
 });
-
-/*
-mycanvas.mousedown(function(e){
-    console.log(e.clientX,e.clientY);
-});
- 
-mycanvas.mousemove(function(e){
-    console.log(e.clientX,e.clientY);
-});
- 
-mycanvas.mouseup(function(e){
-    console.log(e.clientX,e.clientY);
-});
-*/

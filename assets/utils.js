@@ -18,6 +18,15 @@ function setColor(stroke, fill) {
   this.ctx.fillStyle = fill;
 }
 
+function drawLine(x1, y1, x2, y2, lineCap, width) {
+  this.ctx.lineCap = lineCap;
+  this.ctx.lineWidth = width;
+  this.ctx.beginPath();
+  this.ctx.moveTo(x1, y1);
+  this.ctx.lineTo(x2, y2);
+  this.ctx.stroke();
+}
+
 function drawCircle(x, y, r) {
   this.ctx.beginPath();
   this.ctx.arc(x, y, r, 0, Math.PI * 2, false);

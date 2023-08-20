@@ -6,6 +6,7 @@ const path = require('path');
 const bodyParser = require('body-parser');
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
+require('express-ws')(app);
 
 const { readFileSync, existsSync, writeFileSync } = require('fs');
 const { ensureDirSync } = require('fs-extra');
@@ -16,8 +17,13 @@ const ROOM_STATUS = {
     PLAYING: 2,
     CLOSED: 3
 };
+const MAP_WIDTH = 10000, MAP_HEIGHT = 8000;
+const PLAYER_R = 20;
+function RandInt(l, r) {
+    return Math.floor(Math.random() * (r - l + 1)) + l;
+}
 
-Rooms = {};
+var Rooms = {}, Sockets = {};
 ensureDirSync('db');
 if (existsSync('db/room.json'))
     Rooms = JSON.parse(readFileSync('db/room.json', 'utf8'));
@@ -43,7 +49,12 @@ app.post('/api/create', (req, res) => {
     Rooms[roomId] = {
         length: req.body.length,
         status: ROOM_STATUS.PLAYING,
-        startAt: new Date().getTime()
+        startAt: new Date().getTime(),
+        player: [{
+            x: RandInt(3000, 4000),
+            y: RandInt(1000, 2000),
+            d: { x: 0, y: 1 }, v: 0
+        }],
     };
     saveRooms();
     res.json({ roomId: roomId });
@@ -61,6 +72,52 @@ app.post('/api/loadRoom', (req, res) => {
         length: Rooms[roomId].length
     });
 });
+
+app.ws('/room/:roomId', (socket, req) => {
+    var { roomId } = req.params;
+    if (!roomId || !Rooms[roomId]) return;
+
+    var socketId = randomString(32);
+    Sockets[socketId] = { socket, roomId };
+
+    socket.on('message', body => {
+        try { body = JSON.parse(body); }
+        catch (e) { }
+        if (body.speed > 100) body.speed = 100;
+        var hypot = Math.hypot(body.direction.x, body.direction.y);
+        body.direction.x /= hypot, body.direction.y /= hypot;
+        Rooms[roomId].player[0].d = body.direction;
+        Rooms[roomId].player[0].v = body.speed;
+    });
+
+    socket.on('close', (e) => {
+        // delete Sockets[socketId];
+    });
+});
+
+setInterval(() => {
+    for (var roomId in Rooms) {
+        for (var i in Rooms[roomId].player) {
+            var { d, v } = Rooms[roomId].player[i];
+            var newx = Rooms[roomId].player[i].x + d.x * v * 0.1,
+                newy = Rooms[roomId].player[i].y + d.y * v * 0.1;
+            if (newx - PLAYER_R < 0) newx = PLAYER_R;
+            if (newx + PLAYER_R > MAP_WIDTH) newx = MAP_WIDTH - PLAYER_R;
+            if (newy - PLAYER_R < 0) newy = PLAYER_R;
+            if (newy + PLAYER_R > MAP_HEIGHT) newy = MAP_WIDTH - PLAYER_R;
+            Rooms[roomId].player[i].x = newx;
+            Rooms[roomId].player[i].y = newy;
+        }
+    }
+    saveRooms();
+    for (var socketId in Sockets) {
+        var cli = Sockets[socketId];
+        cli.socket.send(JSON.stringify({
+            now: Rooms[cli.roomId].player[0],
+            player: Rooms[cli.roomId].player,
+        }));
+    }
+}, 50);
 
 app.listen(6876, () => {
     console.log('Port :6876 is opened');
