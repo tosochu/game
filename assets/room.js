@@ -120,7 +120,7 @@ $(document).ready(() => {
   window.gameStage = GAME_STAGE.LOADING_ROOM;
   window.money = 0;
   var canvas = $("#gameCanvas")[0];
-  canvas.addEventListener('mousemove', e => {
+  $('body').mousemove(e => {
     window.mouse = { x: e.clientX, y: e.clientY };
   });
   this.ctx = canvas.getContext("2d");
