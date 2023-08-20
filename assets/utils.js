@@ -25,6 +25,16 @@ function drawCircle(x, y, r) {
   this.ctx.fill();
 }
 
+function drawRectangle(x, y, width, height) {
+  this.ctx.beginPath();
+  this.ctx.moveTo(x, y);
+  this.ctx.lineTo(x + width, y);
+  this.ctx.lineTo(x + width, y + height);
+  this.ctx.lineTo(x, y + height);
+  this.ctx.lineTo(x, y);
+  this.ctx.stroke();
+  this.ctx.fill();
+}
 function drawRoundRectangle(x, y, width, height, r) {
   this.ctx.beginPath();
   this.ctx.moveTo(x + r, y);

@@ -38,8 +38,13 @@ app.get('/', (req, res) => {
     res.sendFile('assets/index.html', { root: __dirname });
 });
 app.post('/api/create', (req, res) => {
+    if (req.body.length <= 0) return;
     var roomId = randomString({ length: 4 });
-    Rooms[roomId] = { length: 0, status: ROOM_STATUS.WATING };
+    Rooms[roomId] = {
+        length: req.body.length,
+        status: ROOM_STATUS.PLAYING,
+        startAt: new Date().getTime()
+    };
     saveRooms();
     res.json({ roomId: roomId });
 });
@@ -49,7 +54,12 @@ app.get('/room/:roomId', (req, res) => {
 app.post('/api/loadRoom', (req, res) => {
     var { roomId } = req.body;
     if (!Rooms[roomId]) res.json({ error: '房间不存在。' });
-    if (Rooms[roomId].)
+    if (Rooms[roomId].status == ROOM_STATUS.CLOSED) res.json({ error: '房间已关闭。' });
+    // if(Rooms[roomId].status)
+    res.json({
+        startAt: Rooms[roomId].startAt,
+        length: Rooms[roomId].length
+    });
 });
 
 app.listen(6876, () => {

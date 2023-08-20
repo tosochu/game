@@ -15,10 +15,39 @@ async function loadRoom(roomId) {
     alert(room.error);
     window.location.pathname = '';
   }
-  console.log(room);
+  window.gameStartTime = room.startAt;
+  window.gameLength = room.length;
+  window.gameStage = GAME_STAGE.PLAYING;
 }
 
 $(window).resize(initWindow);
+
+function DrawBackground() {
+  setColor('transparent', '#aaa');
+  const BlockLength = 200;
+  for (var x = 0; x <= MAP_WIDTH; x += BlockLength)
+    drawRectangle(
+      windowWidth() / 2 + x - window.now.x,
+      windowHeight() / 2 - window.now.y,
+      1,
+      MAP_HEIGHT,
+    );
+  for (var y = 0; y <= MAP_HEIGHT; y += BlockLength)
+    drawRectangle(
+      windowWidth() / 2 - window.now.x,
+      windowHeight() / 2 + y - window.now.y,
+      MAP_WIDTH,
+      1,
+    );
+}
+
+function DrawTimeBoard() {
+  var second = ((new Date().getTime() - window.gameStartTime) / 1000).toFixed(0);
+  var time = `${String(Math.floor((window.gameLength - second) / 60)).padStart(2, '0')}`
+    + ` : ${String((window.gameLength - second) % 60).padStart(2, '0')}`;
+  $(".timeBoard-time").html(time);
+  $(".timeBoard-money").html(`${money} pts`);
+}
 
 function DrawPlayer() {
   window.player.forEach(player => {
@@ -31,21 +60,15 @@ function DrawPlayer() {
   });
 }
 
-function DrawTimeBoard() {
-  var second = ((new Date().getTime() - window.gameStartTime) / 1000).toFixed(0);
-  var time = `${String(Math.floor((window.gametime - second) / 60)).padStart(2, '0')}`
-    + ` : ${String((window.gametime - second) % 60).padStart(2, '0')}`;
-  console.log(window.gametime - second, second);
-  $(".timeBoard-time").html(time);
-  $(".timeBoard-money").html(`${money} pts`);
-}
-
 function Draw() {
   var canvas = $("#gameCanvas")[0];
   this.ctx = canvas.getContext("2d");
   this.ctx.clearRect(0, 0, windowWidth(), windowHeight());
-  DrawTimeBoard();
-  DrawPlayer();
+  if (window.gameStage == GAME_STAGE.PLAYING) {
+    DrawBackground();
+    DrawTimeBoard();
+    DrawPlayer();
+  }
 }
 
 $(document).ready(() => {
@@ -53,10 +76,10 @@ $(document).ready(() => {
   initMap();
   window.gameStage = GAME_STAGE.LOADING_ROOM;
   // window.gametime = prompt("Input the game time");
-  window.gametime = 100;
+  window.gameLength = 100;
   window.gameStartTime = new Date().getTime();
   window.money = 0;
-  // setInterval(Draw, 50);
+  setInterval(Draw, 50);
   loadRoom(window.location.pathname.split('/')[2]);
 });
 

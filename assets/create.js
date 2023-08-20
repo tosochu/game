@@ -1,16 +1,16 @@
 $(document).ready(() => {
   $('.submitButton').click(() => {
     if ($('.gameTimeInput').val()) {
-      try {
-        console.log(234123)
-        $.post("/api/create",
-          { length: parseInt($('.gameTimeInput').val()) },
-          (data, status) => {
-            window.location.pathname = `/room/${data.roomId}`;
-          }
-        );
+      if (parseInt($('.gameTimeInput').val()) <= 0) {
+        alert("时长必须是正数。");
+        return;
       }
-      catch (e) { console.error(e) };
+      $.post("/api/create",
+        { length: parseInt($('.gameTimeInput').val()) },
+        (data, status) => {
+          window.location.pathname = `/room/${data.roomId}`;
+        }
+      );
     }
   });
 });
