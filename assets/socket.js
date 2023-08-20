@@ -49,5 +49,5 @@ $(document).ready(() => {
       direction: { x, y },
       speed: Math.hypot(x, y)
     }));
-  }, 200);
+  }, 100);
 });

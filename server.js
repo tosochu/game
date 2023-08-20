@@ -117,7 +117,7 @@ setInterval(() => {
             player: Rooms[cli.roomId].player,
         }));
     }
-}, 50);
+}, 100);
 
 app.listen(6876, () => {
     console.log('Port :6876 is opened');
