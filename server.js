@@ -101,21 +101,34 @@ app.post('/api/create', (req, res) => {
     var roomId = randomString({ length: 4 });
     var items = new Array();
     const HEAVY_RATE = 0.6;
+    const LIGHT_RATE = 0.04;
     for (var x = BLOCK_LENGTH; x <= (Math.min(MAP_HEIGHT, MAP_WIDTH) - 6 * BLOCK_LENGTH) / 2; x += BLOCK_LENGTH) {
-        for (var y = x; y < MAP_HEIGHT - x; y += BLOCK_LENGTH)
-            if (Math.random() <= HEAVY_RATE)
+        for (var y = x; y < MAP_HEIGHT - x; y += BLOCK_LENGTH) {
+            if (y != x && y != MAP_HEIGHT - x - BLOCK_LENGTH && Math.random() < LIGHT_RATE)
+                items.push({ type: 'line', S: { x, y }, T: { x: x + BLOCK_LENGTH, y } });
+            if (Math.random() < HEAVY_RATE)
                 items.push({ type: 'line', S: { x, y }, T: { x, y: y + BLOCK_LENGTH } });
-        for (var y = x; y < MAP_HEIGHT - x; y += BLOCK_LENGTH)
-            if (Math.random() <= HEAVY_RATE)
+        }
+        for (var y = x; y < MAP_HEIGHT - x; y += BLOCK_LENGTH) {
+            if (y != x && y != MAP_HEIGHT - x - BLOCK_LENGTH && Math.random() < LIGHT_RATE)
+                items.push({ type: 'line', S: { x: MAP_WIDTH - x, y }, T: { x: MAP_WIDTH - x + BLOCK_LENGTH, y } });
+            if (Math.random() < HEAVY_RATE)
                 items.push({ type: 'line', S: { x: MAP_WIDTH - x, y }, T: { x: MAP_WIDTH - x, y: y + BLOCK_LENGTH } });
+        }
     }
     for (var y = BLOCK_LENGTH; y <= (Math.min(MAP_HEIGHT, MAP_WIDTH) - 6 * BLOCK_LENGTH) / 2; y += BLOCK_LENGTH) {
-        for (var x = y; x < MAP_WIDTH - y; x += BLOCK_LENGTH)
-            if (Math.random() <= HEAVY_RATE)
+        for (var x = y; x < MAP_WIDTH - y; x += BLOCK_LENGTH) {
+            if (x != y && x != MAP_WIDTH - y - BLOCK_LENGTH && Math.random() < LIGHT_RATE)
+                items.push({ type: 'line', S: { x, y }, T: { x, y: y + BLOCK_LENGTH } });
+            if (Math.random() < HEAVY_RATE)
                 items.push({ type: 'line', S: { x, y }, T: { x: x + BLOCK_LENGTH, y } });
-        for (var x = y; x < MAP_WIDTH - y; x += BLOCK_LENGTH)
-            if (Math.random() <= HEAVY_RATE)
+        }
+        for (var x = y; x < MAP_WIDTH - y; x += BLOCK_LENGTH) {
+            if (x != y && x != MAP_WIDTH - y - BLOCK_LENGTH && Math.random() < LIGHT_RATE)
+                items.push({ type: 'line', S: { x, y: MAP_HEIGHT - y }, T: { x, y: MAP_HEIGHT - y - BLOCK_LENGTH } });
+            if (Math.random() < HEAVY_RATE)
                 items.push({ type: 'line', S: { x, y: MAP_HEIGHT - y }, T: { x: x + BLOCK_LENGTH, y: MAP_HEIGHT - y } });
+        }
     }
     Rooms[roomId] = {
         length: req.body.length * 60,
