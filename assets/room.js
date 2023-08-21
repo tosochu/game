@@ -3,6 +3,8 @@ const GAME_STAGE = {
   WAITING_START: 2,
   PLAYING: 3
 };
+const VIEW_R = 600;
+const BlockLength = 200;
 
 async function loadRoom(roomId) {
   var response = await fetch("/api/loadRoom", {
@@ -59,7 +61,6 @@ function DrawArrow() {
 
 function DrawBackground() {
   setColor('transparent', '#aaa');
-  const BlockLength = 200;
   for (var x = 0; x <= MAP_WIDTH; x += BlockLength)
     drawRectangle(
       windowWidth() / 2 + x - window.now.x,
@@ -83,31 +84,31 @@ function DrawBackground() {
         `${x / 200},${y / 200}`
       );
     }
-    setColor('transparent', 'rgb(77,38,0)');
-    drawRectangle(
-      windowWidth() / 2 - MAP_WIDTH - window.now.x,
-      windowHeight() / 2 - MAP_HEIGHT - window.now.y,
-      MAP_WIDTH,
-      MAP_HEIGHT * 3,
-    );
-    drawRectangle(
-      windowWidth() / 2 + MAP_WIDTH - window.now.x,
-      windowHeight() / 2 - MAP_HEIGHT - window.now.y,
-      MAP_WIDTH,
-      MAP_HEIGHT * 3,
-    );
-    drawRectangle(
-      windowWidth() / 2 - MAP_WIDTH - window.now.x,
-      windowHeight() / 2 - MAP_HEIGHT - window.now.y,
-      MAP_WIDTH * 3,
-      MAP_HEIGHT,
-    );
-    drawRectangle(
-      windowWidth() / 2 - MAP_WIDTH - window.now.x,
-      windowHeight() / 2 + MAP_HEIGHT - window.now.y,
-      MAP_WIDTH * 3,
-      MAP_HEIGHT,
-    );
+  setColor('transparent', 'rgb(77,38,0)');
+  drawRectangle(
+    windowWidth() / 2 - MAP_WIDTH - window.now.x,
+    windowHeight() / 2 - MAP_HEIGHT - window.now.y,
+    MAP_WIDTH,
+    MAP_HEIGHT * 3,
+  );
+  drawRectangle(
+    windowWidth() / 2 + MAP_WIDTH - window.now.x,
+    windowHeight() / 2 - MAP_HEIGHT - window.now.y,
+    MAP_WIDTH,
+    MAP_HEIGHT * 3,
+  );
+  drawRectangle(
+    windowWidth() / 2 - MAP_WIDTH - window.now.x,
+    windowHeight() / 2 - MAP_HEIGHT - window.now.y,
+    MAP_WIDTH * 3,
+    MAP_HEIGHT,
+  );
+  drawRectangle(
+    windowWidth() / 2 - MAP_WIDTH - window.now.x,
+    windowHeight() / 2 + MAP_HEIGHT - window.now.y,
+    MAP_WIDTH * 3,
+    MAP_HEIGHT,
+  );
 }
 
 function DrawItems() {
@@ -147,11 +148,46 @@ function DrawPlayer() {
 function Draw() {
   this.ctx.clearRect(0, 0, windowWidth(), windowHeight());
   if (window.gameStage == GAME_STAGE.PLAYING) {
+    setColor('transparent', '#000');
+    this.ctx.fillRect(0, 0, windowWidth(), windowHeight());
+    this.ctx.save();
+    this.ctx.beginPath();
+    var x = window.mouse.x - windowWidth() / 2,
+      y = window.mouse.y - windowHeight() / 2;
+    [x, y] = [x / Math.hypot(x, y), y / Math.hypot(x, y)];
+    var d = Math.asin(y / Math.hypot(x, y));
+    if (x < 0 && d > 0) d = Math.PI - d;
+    else if (x < 0 && d < 0) d = - Math.PI - d;
+    this.ctx.moveTo(
+      windowWidth() / 2 + Math.cos(d - Math.PI / 3) * BlockLength,
+      windowHeight() / 2 + Math.sin(d - Math.PI / 3) * BlockLength
+    );
+    console.log(x, y);
+    this.ctx.arc(
+      windowWidth() / 2,
+      windowHeight() / 2,
+      VIEW_R,
+      d - Math.PI / 3, d + Math.PI / 3
+    );
+    this.ctx.lineTo(
+      windowWidth() / 2 + Math.cos(d + Math.PI / 3) * BlockLength,
+      windowHeight() / 2 + Math.sin(d + Math.PI / 3) * BlockLength
+    );
+    this.ctx.arc(
+      windowWidth() / 2,
+      windowHeight() / 2,
+      BlockLength,
+      d + Math.PI / 3, d - Math.PI / 3
+    );
+    this.ctx.clip();
+    setColor('transparent', '#fff');
+    this.ctx.fillRect(0, 0, windowWidth(), windowHeight());
     DrawArrow();
     DrawBackground();
     DrawItems();
     DrawTimeBoard();
     DrawPlayer();
+    this.ctx.restore();
   }
 }
 
