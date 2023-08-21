@@ -24,7 +24,7 @@ const PLAYER_STATUS = {
     INROOM: 2,
 };
 const MAP_WIDTH = 10000, MAP_HEIGHT = 8000;
-const PLAYER_R = 20;
+const PLAYER_R = 20, BLOCK_LENGTH = 200;
 function RandInt(l, r) {
     return Math.floor(Math.random() * (r - l + 1)) + l;
 }
@@ -99,6 +99,15 @@ app.post('/api/userLogin', (req, res) => {
 app.post('/api/create', (req, res) => {
     if (req.body.length <= 0) return;
     var roomId = randomString({ length: 4 });
+    var items = new Array();
+    for (var x = BLOCK_LENGTH; x < MAP_WIDTH; x += BLOCK_LENGTH)
+        for (var y = 0; y < MAP_HEIGHT; y += BLOCK_LENGTH)
+            if (Math.random() < 0.3)
+                items.push({ type: 'line', S: { x, y }, T: { x, y: y + BLOCK_LENGTH } });
+    for (var x = 0; x < MAP_WIDTH; x += BLOCK_LENGTH)
+        for (var y = BLOCK_LENGTH; y < MAP_HEIGHT; y += BLOCK_LENGTH)
+            if (Math.random() < 0.3)
+                items.push({ type: 'line', S: { x, y }, T: { x: x + BLOCK_LENGTH, y } });
     Rooms[roomId] = {
         length: req.body.length * 60,
         status: ROOM_STATUS.PLAYING,
@@ -108,6 +117,7 @@ app.post('/api/create', (req, res) => {
             y: RandInt(1000, 2000),
             d: { x: 0, y: 1 }, v: 0
         }],
+        items,
     };
     saveRooms();
     res.json({ roomId: roomId });
@@ -152,12 +162,45 @@ setInterval(() => {
     for (var roomId in Rooms) {
         for (var i in Rooms[roomId].player) {
             var { d, v } = Rooms[roomId].player[i];
-            var newx = Rooms[roomId].player[i].x + d.x * v * 0.1,
-                newy = Rooms[roomId].player[i].y + d.y * v * 0.1;
-            if (newx - PLAYER_R < 0) newx = PLAYER_R;
-            if (newx + PLAYER_R > MAP_WIDTH) newx = MAP_WIDTH - PLAYER_R;
-            if (newy - PLAYER_R < 0) newy = PLAYER_R;
-            if (newy + PLAYER_R > MAP_HEIGHT) newy = MAP_HEIGHT - PLAYER_R;
+            var { x, y } = Rooms[roomId].player[i];
+            function checkCircleCrossRectangle({ x, y, r }, { x1, y1, x2, y2 }) {
+                if (x1 > x2) [x1, x2] = [x2, x1];
+                if (y1 > y2) [y1, y2] = [y2, y1];
+                if (x1 <= x && x <= x2 && y1 <= y && y <= y2) return true;
+                var closetX = 0, closetY = 0;
+                if (x <= x1) closetX = x1;
+                if (x >= x2) closetX = x2;
+                if (x1 < x && x < x2) closetX = x;
+                if (y <= y1) closetY = y1;
+                if (y >= y2) closetY = y2;
+                if (y1 < y && y < y2) closetY = y;
+                return Math.hypot(x - closetX, y - closetY) <= r;
+            }
+            // if (newx - PLAYER_R < 0) newx = PLAYER_R;
+            // if (newx + PLAYER_R > MAP_WIDTH) newx = MAP_WIDTH - PLAYER_R;
+            // if (newy - PLAYER_R < 0) newy = PLAYER_R;
+            // if (newy + PLAYER_R > MAP_HEIGHT) newy = MAP_HEIGHT - PLAYER_R;
+            var dis = 0;
+            while (dis <= v * 0.1) {
+                dis += 0.1;
+                var newx = x + d.x * dis, newy = y + d.y * dis;
+                var flag = false;
+                for (var item of Rooms[roomId].items)
+                    if (item.type == 'line') {
+                        if (item.S.x == item.T.x)
+                            flag = flag || checkCircleCrossRectangle(
+                                { x: newx, y: newy, r: PLAYER_R },
+                                { x1: item.S.x - 10, x2: item.S.x + 10, y1: item.S.y, y2: item.T.y },
+                            );
+                        if (item.S.y == item.T.y)
+                            flag = flag || checkCircleCrossRectangle(
+                                { x: newx, y: newy, r: PLAYER_R },
+                                { x1: item.S.x, x2: item.T.x, y1: item.S.y - 10, y2: item.S.y + 10 },
+                            );
+                    }
+                if (flag) { dis -= 0.1; break; }
+            }
+            var newx = x + d.x * dis, newy = y + d.y * dis;
             Rooms[roomId].player[i].x = newx;
             Rooms[roomId].player[i].y = newy;
         }
@@ -168,6 +211,7 @@ setInterval(() => {
         cli.socket.send(JSON.stringify({
             now: Rooms[cli.roomId].player[0],
             player: Rooms[cli.roomId].player,
+            items: Rooms[cli.roomId].items,
         }));
     }
 }, 100);

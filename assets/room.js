@@ -83,6 +83,46 @@ function DrawBackground() {
         `${x / 200},${y / 200}`
       );
     }
+    setColor('transparent', 'rgb(77,38,0)');
+    drawRectangle(
+      windowWidth() / 2 - MAP_WIDTH - window.now.x,
+      windowHeight() / 2 - MAP_HEIGHT - window.now.y,
+      MAP_WIDTH,
+      MAP_HEIGHT * 3,
+    );
+    drawRectangle(
+      windowWidth() / 2 + MAP_WIDTH - window.now.x,
+      windowHeight() / 2 - MAP_HEIGHT - window.now.y,
+      MAP_WIDTH,
+      MAP_HEIGHT * 3,
+    );
+    drawRectangle(
+      windowWidth() / 2 - MAP_WIDTH - window.now.x,
+      windowHeight() / 2 - MAP_HEIGHT - window.now.y,
+      MAP_WIDTH * 3,
+      MAP_HEIGHT,
+    );
+    drawRectangle(
+      windowWidth() / 2 - MAP_WIDTH - window.now.x,
+      windowHeight() / 2 + MAP_HEIGHT - window.now.y,
+      MAP_WIDTH * 3,
+      MAP_HEIGHT,
+    );
+}
+
+function DrawItems() {
+  setColor(`rgb(77,38,0)`, 'transparent');
+  window.items.forEach(item => {
+    if (item.type == 'line')
+      drawLine(
+        windowWidth() / 2 + item.S.x - window.now.x,
+        windowHeight() / 2 + item.S.y - window.now.y,
+        windowWidth() / 2 + item.T.x - window.now.x,
+        windowHeight() / 2 + item.T.y - window.now.y,
+        'round',
+        20,
+      );
+  });
 }
 
 function DrawTimeBoard() {
@@ -109,6 +149,7 @@ function Draw() {
   if (window.gameStage == GAME_STAGE.PLAYING) {
     DrawArrow();
     DrawBackground();
+    DrawItems();
     DrawTimeBoard();
     DrawPlayer();
   }

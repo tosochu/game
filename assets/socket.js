@@ -20,6 +20,7 @@ function getMessage(message) {
     var messages = JSON.parse(message.data);
     window.now = messages.now;
     window.player = messages.player;
+    window.items = messages.items;
   }
   catch (e) { console.log(e); }
 }
