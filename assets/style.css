@@ -22,7 +22,7 @@ body{
 
 .timeBoard{
     width: 150px;
-    background-color: #00000022;
+    background-color: #888888bb;
     border-radius: 10px;
 }
 .timeBoard-text{
@@ -33,7 +33,7 @@ body{
 .timeBoard-time{
     margin: 5px 10px;
     width: 80%;
-    background-color: #00000022;
+    background-color: #bbbbbb66;
     text-align: center;
     padding: 3px;
     border-radius: 5px;
@@ -41,7 +41,7 @@ body{
 .timeBoard-money{
     margin: 5px 10px;
     width: 80%;
-    background-color: #00000022;
+    background-color: #bbbbbb66;
     text-align: right;
     padding: 3px;
     border-radius: 5px;
