@@ -176,33 +176,46 @@ setInterval(() => {
                 if (y1 < y && y < y2) closetY = y;
                 return Math.hypot(x - closetX, y - closetY) <= r;
             }
-            // if (newx - PLAYER_R < 0) newx = PLAYER_R;
-            // if (newx + PLAYER_R > MAP_WIDTH) newx = MAP_WIDTH - PLAYER_R;
-            // if (newy - PLAYER_R < 0) newy = PLAYER_R;
-            // if (newy + PLAYER_R > MAP_HEIGHT) newy = MAP_HEIGHT - PLAYER_R;
-            var dis = 0;
-            while (dis <= v * 0.1) {
-                dis += 0.1;
-                var newx = x + d.x * dis, newy = y + d.y * dis;
+            function checkAllCross(player) {
                 var flag = false;
+                flag = flag || checkCircleCrossRectangle(
+                    player, { x1: -MAP_WIDTH, x2: MAP_WIDTH * 2, y1: -MAP_HEIGHT, y2: 0 },
+                );
+                flag = flag || checkCircleCrossRectangle(
+                    player, { x1: -MAP_WIDTH, x2: MAP_WIDTH * 2, y1: MAP_HEIGHT, y2: MAP_HEIGHT * 2 },
+                );
+                flag = flag || checkCircleCrossRectangle(
+                    player, { x1: -MAP_WIDTH, x2: 0, y1: -MAP_HEIGHT, y2: MAP_HEIGHT * 2 },
+                );
+                flag = flag || checkCircleCrossRectangle(
+                    player, { x1: MAP_WIDTH, x2: MAP_WIDTH * 2, y1: -MAP_HEIGHT, y2: MAP_HEIGHT * 2 },
+                );
                 for (var item of Rooms[roomId].items)
                     if (item.type == 'line') {
                         if (item.S.x == item.T.x)
                             flag = flag || checkCircleCrossRectangle(
-                                { x: newx, y: newy, r: PLAYER_R },
-                                { x1: item.S.x - 10, x2: item.S.x + 10, y1: item.S.y, y2: item.T.y },
+                                player, { x1: item.S.x - 10, x2: item.S.x + 10, y1: item.S.y, y2: item.T.y },
                             );
                         if (item.S.y == item.T.y)
                             flag = flag || checkCircleCrossRectangle(
-                                { x: newx, y: newy, r: PLAYER_R },
-                                { x1: item.S.x, x2: item.T.x, y1: item.S.y - 10, y2: item.S.y + 10 },
+                                player, { x1: item.S.x, x2: item.T.x, y1: item.S.y - 10, y2: item.S.y + 10 },
                             );
                     }
-                if (flag) { dis -= 0.1; break; }
+                return flag;
             }
-            var newx = x + d.x * dis, newy = y + d.y * dis;
-            Rooms[roomId].player[i].x = newx;
-            Rooms[roomId].player[i].y = newy;
+            const SmallStep = 0.1;
+            var dis = 0;
+            while (dis <= v * 0.1) {
+                dis += SmallStep;
+                if (checkAllCross({ x: x + d.x * dis, y, r: PLAYER_R })) { dis -= SmallStep; break; }
+            }
+            x = Rooms[roomId].player[i].x = x + d.x * dis;
+            dis = 0;
+            while (dis <= v * 0.1) {
+                dis += SmallStep;
+                if (checkAllCross({ x, y: y + d.y * dis, r: PLAYER_R })) { dis -= SmallStep; break; }
+            }
+            Rooms[roomId].player[i].y = y + d.y * dis;
         }
     }
     saveRooms();
