@@ -212,15 +212,15 @@ setInterval(() => {
                     }
                 return flag;
             }
-            const SmallStep = 0.1;
+            const SmallStep = 0.2;
             var dis = 0;
-            while (dis <= v * 0.1) {
+            while (dis <= v * 0.15) {
                 dis += SmallStep;
                 if (checkAllCross({ x: x + d.x * dis, y, r: PLAYER_R })) { dis -= SmallStep; break; }
             }
             x = Rooms[roomId].player[i].x = x + d.x * dis;
             dis = 0;
-            while (dis <= v * 0.1) {
+            while (dis <= v * 0.15) {
                 dis += SmallStep;
                 if (checkAllCross({ x, y: y + d.y * dis, r: PLAYER_R })) { dis -= SmallStep; break; }
             }
