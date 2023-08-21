@@ -100,21 +100,30 @@ app.post('/api/create', (req, res) => {
     if (req.body.length <= 0) return;
     var roomId = randomString({ length: 4 });
     var items = new Array();
-    for (var x = BLOCK_LENGTH; x < MAP_WIDTH; x += BLOCK_LENGTH)
-        for (var y = 0; y < MAP_HEIGHT; y += BLOCK_LENGTH)
-            if (Math.random() < 0.3)
+    const HEAVY_RATE = 0.6;
+    for (var x = BLOCK_LENGTH; x <= (Math.min(MAP_HEIGHT, MAP_WIDTH) - 6 * BLOCK_LENGTH) / 2; x += BLOCK_LENGTH) {
+        for (var y = x; y < MAP_HEIGHT - x; y += BLOCK_LENGTH)
+            if (Math.random() <= HEAVY_RATE)
                 items.push({ type: 'line', S: { x, y }, T: { x, y: y + BLOCK_LENGTH } });
-    for (var x = 0; x < MAP_WIDTH; x += BLOCK_LENGTH)
-        for (var y = BLOCK_LENGTH; y < MAP_HEIGHT; y += BLOCK_LENGTH)
-            if (Math.random() < 0.3)
+        for (var y = x; y < MAP_HEIGHT - x; y += BLOCK_LENGTH)
+            if (Math.random() <= HEAVY_RATE)
+                items.push({ type: 'line', S: { x: MAP_WIDTH - x, y }, T: { x: MAP_WIDTH - x, y: y + BLOCK_LENGTH } });
+    }
+    for (var y = BLOCK_LENGTH; y <= (Math.min(MAP_HEIGHT, MAP_WIDTH) - 6 * BLOCK_LENGTH) / 2; y += BLOCK_LENGTH) {
+        for (var x = y; x < MAP_WIDTH - y; x += BLOCK_LENGTH)
+            if (Math.random() <= HEAVY_RATE)
                 items.push({ type: 'line', S: { x, y }, T: { x: x + BLOCK_LENGTH, y } });
+        for (var x = y; x < MAP_WIDTH - y; x += BLOCK_LENGTH)
+            if (Math.random() <= HEAVY_RATE)
+                items.push({ type: 'line', S: { x, y: MAP_HEIGHT - y }, T: { x: x + BLOCK_LENGTH, y: MAP_HEIGHT - y } });
+    }
     Rooms[roomId] = {
         length: req.body.length * 60,
         status: ROOM_STATUS.PLAYING,
         startAt: new Date().getTime(),
         player: [{
-            x: RandInt(3000, 4000),
-            y: RandInt(1000, 2000),
+            x: RandInt(MAP_WIDTH / 2 - BLOCK_LENGTH * 7, MAP_WIDTH / 2 + BLOCK_LENGTH * 7),
+            y: RandInt(MAP_HEIGHT / 2 - BLOCK_LENGTH * 2, MAP_HEIGHT / 2 + BLOCK_LENGTH * 2),
             d: { x: 0, y: 1 }, v: 0
         }],
         items,
