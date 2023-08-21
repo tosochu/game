@@ -6,16 +6,22 @@ const path = require('path');
 const bodyParser = require('body-parser');
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
+app.use(require('cookie-parser')())
 require('express-ws')(app);
 
 const { readFileSync, existsSync, writeFileSync } = require('fs');
 const { ensureDirSync } = require('fs-extra');
 const randomString = require('random-string');
+const hashPassword = require('./lib/hash.js');
 
 const ROOM_STATUS = {
     WATING: 1,
     PLAYING: 2,
-    CLOSED: 3
+    CLOSED: 3,
+};
+const PLAYER_STATUS = {
+    FREE: 1,
+    INROOM: 2,
 };
 const MAP_WIDTH = 10000, MAP_HEIGHT = 8000;
 const PLAYER_R = 20;
@@ -23,10 +29,15 @@ function RandInt(l, r) {
     return Math.floor(Math.random() * (r - l + 1)) + l;
 }
 
-var Rooms = {}, Sockets = {};
+var Users = {}, Rooms = {}, Sockets = {};
 ensureDirSync('db');
+if (existsSync('db/user.json'))
+    Users = JSON.parse(readFileSync('db/user.json', 'utf8'));
 if (existsSync('db/room.json'))
     Rooms = JSON.parse(readFileSync('db/room.json', 'utf8'));
+function saveUsers() {
+    writeFileSync('db/user.json', JSON.stringify(Users));
+}
 function saveRooms() {
     writeFileSync('db/room.json', JSON.stringify(Rooms));
 }
@@ -38,10 +49,52 @@ app.all('*', (req, res, next) => {
     if ('OPTIONS' == req.method) return res.send(200);
     next();
 });
+app.all('*', (req, res, next) => {
+    for (var username in Users)
+        if (Users[username].cookie == req.cookies['tosochu/game/cookie'])
+            req.user = username;
+    next();
+});
 app.use('/asset', express.static(path.join(__dirname, 'assets')));
 
 app.get('/', (req, res) => {
     res.sendFile('assets/index.html', { root: __dirname });
+});
+app.get('/login', (req, res) => {
+    res.sendFile('assets/login.html', { root: __dirname });
+});
+app.get('/register', (req, res) => {
+    res.sendFile('assets/register.html', { root: __dirname });
+});
+app.post('/api/userRegister', (req, res) => {
+    var { username, password } = req.body;
+    if (!username || !password) return;
+    if (Users[username]) return res.json({ error: '用户名重复。' });
+    if (!(/^[a-zA-Z0-9_]{4,16}/.test(username)))
+        return res.json({ error: '用户名不合法。' });
+    if (!(/^.{6,256}/.test(password)))
+        return res.json({ error: '密码太菜，容易被盗。' });
+    var salt = randomString({ length: 64 });
+    Users[username] = {
+        username, salt,
+        hash: hashPassword(password, salt),
+        status: PLAYER_STATUS.FREE,
+        room: '',
+    };
+    saveUsers();
+    res.json({});
+});
+app.post('/api/userLogin', (req, res) => {
+    var { username, password } = req.body;
+    if (!username || !password) return;
+    if (!Users[username]) return res.json({ error: '用户不存在。' });
+    var { salt, hash } = Users[username];
+    if (hashPassword(password, salt) != hash)
+        return res.json({ error: '密码错误。' });
+    var cookie = randomString({ length: 64 });
+    Users[username].cookie = cookie; saveUsers();
+    res.cookie('tosochu/game/cookie', cookie);
+    res.json({});
 });
 app.post('/api/create', (req, res) => {
     if (req.body.length <= 0) return;
@@ -104,7 +157,7 @@ setInterval(() => {
             if (newx - PLAYER_R < 0) newx = PLAYER_R;
             if (newx + PLAYER_R > MAP_WIDTH) newx = MAP_WIDTH - PLAYER_R;
             if (newy - PLAYER_R < 0) newy = PLAYER_R;
-            if (newy + PLAYER_R > MAP_HEIGHT) newy = MAP_WIDTH - PLAYER_R;
+            if (newy + PLAYER_R > MAP_HEIGHT) newy = MAP_HEIGHT - PLAYER_R;
             Rooms[roomId].player[i].x = newx;
             Rooms[roomId].player[i].y = newy;
         }
