@@ -1,36 +1,43 @@
-body{
+* {
     margin: 0;
+    padding: 0;
+}
+html, body {
+    height: 100%;
+    width: 100%;
     user-select: none;
 }
-
-.window-left{
+canvas {
+    display: block;
+}
+.window-left {
     position: fixed;
     left: 0;
 }
-.window-right{
+.window-right {
     position: fixed;
     right: 0;
 }
-.window-top{
+.window-top {
     position: fixed;
     top: 0;
 }
-.window-bottom{
+.window-bottom {
     position: fixed;
     bottom: 0;
 }
 
-.timeBoard{
+.timeBoard {
     width: 150px;
     background-color: #888888bb;
     border-radius: 10px;
 }
-.timeBoard-text{
+.timeBoard-text {
     margin: 5px 0;
     text-align: center;
     padding: 0 5px;
 }
-.timeBoard-time{
+.timeBoard-time {
     margin: 5px 10px;
     width: 80%;
     background-color: #bbbbbb66;
@@ -38,7 +45,7 @@ body{
     padding: 3px;
     border-radius: 5px;
 }
-.timeBoard-money{
+.timeBoard-money {
     margin: 5px 10px;
     width: 80%;
     background-color: #bbbbbb66;

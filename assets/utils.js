@@ -9,11 +9,11 @@ function ArcSine(x, y) {
   return d;
 }
 
-function windowHeight() {
-  return $(window).height();
-}
 function windowWidth() {
   return $(window).width();
+}
+function windowHeight() {
+  return $(window).height();
 }
 function initWindow() {
   $("#gameCanvas").attr("height", windowHeight());
