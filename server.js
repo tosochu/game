@@ -25,6 +25,7 @@ const PLAYER_STATUS = {
 };
 const MAP_WIDTH = 10000, MAP_HEIGHT = 8000;
 const PLAYER_R = 20, BLOCK_LENGTH = 200;
+const VIEW_R = 500;
 function RandInt(l, r) {
     return Math.floor(Math.random() * (r - l + 1)) + l;
 }
@@ -198,6 +199,29 @@ setInterval(() => {
                 if (y1 < y && y < y2) closetY = y;
                 return Math.hypot(x - closetX, y - closetY) <= r;
             }
+            function checkCircleCrossCircle({ x, y, r }, { x1, y1, r1 }) {
+                return Math.hypot(x - x1, y - y1) <= r + r1;
+            }
+            function checkCircleCrossItem(player, item) {
+                var flag = false;
+                if (item.type == 'line') {
+                    if (item.S.x == item.T.x)
+                        flag = flag || checkCircleCrossRectangle(
+                            player, { x1: item.S.x - 10, x2: item.S.x + 10, y1: item.S.y, y2: item.T.y },
+                        );
+                    if (item.S.y == item.T.y)
+                        flag = flag || checkCircleCrossRectangle(
+                            player, { x1: item.S.x, x2: item.T.x, y1: item.S.y - 10, y2: item.S.y + 10 },
+                        );
+                    flag = flag || checkCircleCrossCircle(
+                        player, { x1: item.S.x, y1: item.S.y, r1: 10 },
+                    );
+                    flag = flag || checkCircleCrossCircle(
+                        player, { x1: item.T.x, y1: item.T.y, r1: 10 },
+                    );
+                }
+                return flag;
+            }
             function checkAllCross(player) {
                 var flag = false;
                 flag = flag || checkCircleCrossRectangle(
@@ -212,20 +236,13 @@ setInterval(() => {
                 flag = flag || checkCircleCrossRectangle(
                     player, { x1: MAP_WIDTH, x2: MAP_WIDTH * 2, y1: -MAP_HEIGHT, y2: MAP_HEIGHT * 2 },
                 );
-                for (var item of Rooms[roomId].items)
-                    if (item.type == 'line') {
-                        if (item.S.x == item.T.x)
-                            flag = flag || checkCircleCrossRectangle(
-                                player, { x1: item.S.x - 10, x2: item.S.x + 10, y1: item.S.y, y2: item.T.y },
-                            );
-                        if (item.S.y == item.T.y)
-                            flag = flag || checkCircleCrossRectangle(
-                                player, { x1: item.S.x, x2: item.T.x, y1: item.S.y - 10, y2: item.S.y + 10 },
-                            );
-                    }
+                for (var item of Rooms[roomId].items) {
+                    flag = flag || checkCircleCrossItem(player, item);
+                    if (flag) break;
+                }
                 return flag;
             }
-            const SmallStep = 0.2;
+            const SmallStep = 3;
             var dis = 0;
             while (dis <= v * 0.15) {
                 dis += SmallStep;
@@ -242,11 +259,16 @@ setInterval(() => {
     }
     saveRooms();
     for (var socketId in Sockets) {
-        var cli = Sockets[socketId];
-        cli.socket.send(JSON.stringify({
-            now: Rooms[cli.roomId].player[0],
-            player: Rooms[cli.roomId].player,
-            items: Rooms[cli.roomId].items,
+        var { roomId, socket } = Sockets[socketId];
+        var items = new Array();
+        for (var item of Rooms[roomId].items) {
+            var player = Rooms[roomId].player[0]; player.r = VIEW_R;
+            if (checkCircleCrossItem(player, item)) items.push(item);
+        }
+        socket.send(JSON.stringify({
+            now: Rooms[roomId].player[0],
+            player: Rooms[roomId].player,
+            items,
         }));
     }
 }, 100);

@@ -3,7 +3,7 @@ const GAME_STAGE = {
   WAITING_START: 2,
   PLAYING: 3
 };
-const VIEW_R = 600;
+const VIEW_R = 500;
 const BlockLength = 200;
 
 async function loadRoom(roomId) {
@@ -28,9 +28,7 @@ function DrawArrow() {
   var x = window.mouse.x - windowWidth() / 2,
     y = window.mouse.y - windowHeight() / 2;
   if (Math.hypot(x, y) <= 50) return;
-  var d = Math.asin(y / Math.hypot(x, y));
-  if (x < 0 && d > 0) d = Math.PI - d;
-  else if (x < 0 && d < 0) d = - Math.PI - d;
+  var d = ArcSine(x, y);
   var greyness = 330 - Math.min(Math.hypot(x, y), 100) * 1.5;
   setColor(`rgb(${greyness},${greyness},${greyness})`, 'transparent');
   drawLine(
@@ -145,6 +143,33 @@ function DrawPlayer() {
   });
 }
 
+function DrawShadow() {
+  setColor('transparent', '#000');
+  for (var item of window.items) {
+    var { S: { x: x1, y: y1 }, T: { x: x2, y: y2 } } = item;
+    x1 -= window.now.x, y1 -= window.now.y;
+    x2 -= window.now.x, y2 -= window.now.y;
+    this.ctx.lineWidth = 10;
+    this.ctx.beginPath();
+    this.ctx.moveTo(
+      windowWidth() / 2 + x2,
+      windowHeight() / 2 + y2,
+    );
+    this.ctx.lineTo(
+      windowWidth() / 2 + x1,
+      windowHeight() / 2 + y1,
+    );
+    var tmp = ArcSine(x2, y2) - ArcSine(x1, y1);
+    if (tmp < 0) tmp += Math.PI * 2;
+    this.ctx.arc(
+      windowWidth() / 2, windowHeight() / 2,
+      VIEW_R * 2, ArcSine(x1, y1), ArcSine(x2, y2),
+      tmp > Math.PI
+    );
+    this.ctx.fill();
+  }
+}
+
 function Draw() {
   this.ctx.clearRect(0, 0, windowWidth(), windowHeight());
   if (window.gameStage == GAME_STAGE.PLAYING) {
@@ -158,26 +183,11 @@ function Draw() {
     var d = Math.asin(y / Math.hypot(x, y));
     if (x < 0 && d > 0) d = Math.PI - d;
     else if (x < 0 && d < 0) d = - Math.PI - d;
-    this.ctx.moveTo(
-      windowWidth() / 2 + Math.cos(d - Math.PI / 3) * BlockLength,
-      windowHeight() / 2 + Math.sin(d - Math.PI / 3) * BlockLength
-    );
-    console.log(x, y);
+    this.ctx.moveTo(windowWidth() / 2, windowHeight() / 2);
     this.ctx.arc(
       windowWidth() / 2,
       windowHeight() / 2,
-      VIEW_R,
-      d - Math.PI / 3, d + Math.PI / 3
-    );
-    this.ctx.lineTo(
-      windowWidth() / 2 + Math.cos(d + Math.PI / 3) * BlockLength,
-      windowHeight() / 2 + Math.sin(d + Math.PI / 3) * BlockLength
-    );
-    this.ctx.arc(
-      windowWidth() / 2,
-      windowHeight() / 2,
-      BlockLength,
-      d + Math.PI / 3, d - Math.PI / 3
+      VIEW_R, 0, Math.PI * 2
     );
     this.ctx.clip();
     setColor('transparent', '#fff');
@@ -185,6 +195,7 @@ function Draw() {
     DrawArrow();
     DrawBackground();
     DrawItems();
+    DrawShadow();
     DrawTimeBoard();
     DrawPlayer();
     this.ctx.restore();

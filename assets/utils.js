@@ -2,6 +2,13 @@ function RandInt(l, r) {
   return Math.floor(Math.random() * (r - l + 1)) + l;
 }
 
+function ArcSine(x, y) {
+  var d = Math.asin(y / Math.hypot(x, y));
+  if (x < 0 && d > 0) d = Math.PI - d;
+  else if (x < 0 && d < 0) d = - Math.PI - d;
+  return d;
+}
+
 function windowHeight() {
   return $(window).height();
 }
