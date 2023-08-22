@@ -170,6 +170,27 @@ function DrawShadow() {
   }
 }
 
+const MAX_SMALL_MAP = 150, MIN_SMALL_MAP = 90;
+function DrawSmallMap() {
+  var mapW = window.smallMapLengthDisplay,
+    mapH = mapW / MAP_WIDTH * MAP_HEIGHT,
+    mapX = windowWidth() - mapW - 10, mapY = 10;
+  function getX(x) { return mapX + x / MAP_WIDTH * mapW; }
+  function getY(y) { return mapY + y / MAP_HEIGHT * mapH; }
+  function getWidth(l) { return l / MAP_WIDTH * mapW; }
+  setColor('transparent', '#88888888');
+  drawRoundRectangle(mapX, mapY, mapW, mapH, 5);
+  setColor('blue', 'transparent');
+  drawRectangle(
+    getX(MAP_WIDTH / 2 - BlockLength * 8),
+    getY(MAP_HEIGHT / 2 - BlockLength * 3),
+    getWidth(BlockLength * 16),
+    getWidth(BlockLength * 6),
+  );
+  setColor('transparent', 'red');
+  drawCircle(getX(window.now.x), getY(window.now.y), getWidth(200));
+}
+
 function Draw() {
   this.ctx.clearRect(0, 0, windowWidth(), windowHeight());
   if (window.gameStage == GAME_STAGE.PLAYING) {
@@ -199,6 +220,7 @@ function Draw() {
     DrawTimeBoard();
     DrawPlayer();
     this.ctx.restore();
+    DrawSmallMap();
   }
 }
 
@@ -213,5 +235,13 @@ $(document).ready(() => {
   });
   this.ctx = canvas.getContext("2d");
   setInterval(Draw, 50);
+  window.smallMapLength = MIN_SMALL_MAP;
+  window.smallMapLengthDisplay = MIN_SMALL_MAP;
+  setInterval(() => {
+    smallMapLengthDisplay = smallMapLengthDisplay * 0.3 + smallMapLength * 0.7;
+    if (window.mouse.x > windowWidth() - smallMapLengthDisplay - 10
+      && window.mouse.y < smallMapLengthDisplay / MAP_WIDTH * MAP_HEIGHT + 10) smallMapLength = MAX_SMALL_MAP;
+    else smallMapLength = MIN_SMALL_MAP;
+  }, 50);
   loadRoom(window.location.pathname.split('/')[2]);
 });
