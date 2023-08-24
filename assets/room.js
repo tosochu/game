@@ -40,16 +40,16 @@ function DrawArrow() {
     12,
   );
   drawLine(
-    window.mouse.x - Math.cos(d - Math.PI / 4) * 30,
-    window.mouse.y - Math.sin(d - Math.PI / 4) * 30,
+    window.mouse.x - Math.cos(d - Math.PI / 4) * 30 * (y == 0 && x < 0 ? -1 : 1),
+    window.mouse.y - Math.sin(d - Math.PI / 4) * 30 * (y == 0 && x < 0 ? -1 : 1),
     window.mouse.x,
     window.mouse.y,
     'round',
     12,
   );
   drawLine(
-    window.mouse.x - Math.cos(d + Math.PI / 4) * 30,
-    window.mouse.y - Math.sin(d + Math.PI / 4) * 30,
+    window.mouse.x - Math.cos(d + Math.PI / 4) * 30 * (y == 0 && x < 0 ? -1 : 1),
+    window.mouse.y - Math.sin(d + Math.PI / 4) * 30 * (y == 0 && x < 0 ? -1 : 1),
     window.mouse.x,
     window.mouse.y,
     'round',

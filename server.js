@@ -170,9 +170,10 @@ app.ws('/room/:roomId', (socket, req) => {
         try { body = JSON.parse(body); }
         catch (e) { }
         if (body.speed > 100) body.speed = 100;
-        var hypot = Math.hypot(body.direction.x, body.direction.y);
-        body.direction.x /= hypot, body.direction.y /= hypot;
-        Rooms[roomId].player[0].d = body.direction;
+        var { x, y } = body.direction;
+        if (Math.hypot(x, y) > 0)
+            [x, y] = [x / Math.hypot(x, y), y / Math.hypot(x, y)];
+        Rooms[roomId].player[0].d = { x, y };
         Rooms[roomId].player[0].v = body.speed;
     });
 
