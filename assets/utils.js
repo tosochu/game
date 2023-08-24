@@ -25,9 +25,8 @@ function setColor(stroke, fill) {
   this.ctx.fillStyle = fill;
 }
 
-function drawLine(x1, y1, x2, y2, lineCap, width) {
+function drawLine(x1, y1, x2, y2, lineCap) {
   this.ctx.lineCap = lineCap;
-  this.ctx.lineWidth = width;
   this.ctx.beginPath();
   this.ctx.moveTo(x1, y1);
   this.ctx.lineTo(x2, y2);
@@ -68,17 +67,43 @@ function drawRoundRectangle(x, y, width, height, r) {
 
 function getTextWidth(font, text) {
   this.ctx.font = font;
-  return ctx.measureText(text).width;
+  return this.ctx.measureText(text).width;
 }
 function drawCenterText(x, y, font, text) {
   this.ctx.font = font;
-  ctx.fillText(text, x - getTextWidth(font, text) / 2, y);
+  this.ctx.fillText(text, x - getTextWidth(font, text) / 2, y);
+  this.ctx.strokeText(text, x - getTextWidth(font, text) / 2, y);
 }
 function drawLeftText(x, y, font, text) {
   this.ctx.font = font;
-  ctx.fillText(text, x, y);
+  this.ctx.fillText(text, x, y);
+  this.ctx.strokeText(text, x, y);
 }
 function drawRightText(x, y, font, text) {
   this.ctx.font = font;
-  ctx.fillText(text, x - getTextWidth(font, text), y);
+  this.ctx.fillText(text, x - getTextWidth(font, text), y);
+  this.ctx.strokeText(text, x - getTextWidth(font, text), y);
+}
+
+function drawWeb(x, y, r) {
+  var cnt1 = 5; if (r > 60) cnt1++; if (r > 120) cnt1++;
+  for (var i = 0; i < cnt1; i++) {
+    var d = i * Math.PI * 2 / cnt1 - Math.PI;
+    drawLine(x, y, x + Math.cos(d) * r, y + Math.sin(d) * r, 'round',);
+  }
+  var cnt2 = 2; if (r > 100) cnt2++; if (r > 150) cnt2++;
+  for (var j = 1; j <= 3; j++) {
+    var r2 = (r - 10) / 3 * j;
+    for (var i = 0; i < cnt1; i++) {
+      var d1 = i * Math.PI * 2 / cnt1 - Math.PI,
+        d2 = (i + 1) * Math.PI * 2 / cnt1 - Math.PI;
+      this.ctx.beginPath();
+      this.ctx.arc(
+        x + (Math.cos(d1) + Math.cos(d2)) * r2,
+        y + (Math.sin(d1) + Math.sin(d2)) * r2,
+        r2, d1 + Math.PI, d2 + Math.PI, false,
+      );
+      this.ctx.stroke();
+    }
+  }
 }

@@ -48,26 +48,27 @@ app.all('*', (req, res, next) => {
     res.set('Access-Control-Allow-Methods', 'GET');
     res.set('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type');
     if ('OPTIONS' == req.method) return res.send(200);
-    next();
-});
-app.all('*', (req, res, next) => {
-    for (var username in Users)
-        if (Users[username].cookie == req.cookies['tosochu/game/cookie'])
-            req.user = username;
+    if (req.cookies['tosochu/game/name'] && req.cookies['tosochu/game/cookie']
+        && Users[req.cookies['tosochu/game/name']]
+        && Users[req.cookies['tosochu/game/name']].cookie == req.cookies['tosochu/game/cookie'])
+        req.user = req.cookies['tosochu/game/name'];
+    else res.cookie('tosochu/game/name', ''),
+        res.cookie('tosochu/game/cookie', '');
     next();
 });
 app.use('/asset', express.static(path.join(__dirname, 'assets')));
 
-app.get('/', (req, res) => {
-    res.sendFile('assets/index.html', { root: __dirname });
-});
-app.get('/login', (req, res) => {
-    res.sendFile('assets/login.html', { root: __dirname });
-});
-app.get('/register', (req, res) => {
-    res.sendFile('assets/register.html', { root: __dirname });
-});
-app.post('/api/userRegister', (req, res) => {
+function RegisterPageHandler(pathname, filename) {
+    app.get(pathname, (req, res) => {
+        res.sendFile(`assets/html/${filename}`, { root: __dirname });
+    });
+}
+RegisterPageHandler('/login', 'user_login.html');
+RegisterPageHandler('/register', 'user_register.html');
+RegisterPageHandler('/', 'room_create.html');
+RegisterPageHandler('/room/:roomId', 'room_play.html');
+
+app.post('/api/user/register', (req, res) => {
     var { username, password } = req.body;
     if (!username || !password) return;
     if (Users[username]) return res.json({ error: '用户名重复。' });
@@ -85,7 +86,7 @@ app.post('/api/userRegister', (req, res) => {
     saveUsers();
     res.json({});
 });
-app.post('/api/userLogin', (req, res) => {
+app.post('/api/user/login', (req, res) => {
     var { username, password } = req.body;
     if (!username || !password) return;
     if (!Users[username]) return res.json({ error: '用户不存在。' });
@@ -94,10 +95,11 @@ app.post('/api/userLogin', (req, res) => {
         return res.json({ error: '密码错误。' });
     var cookie = randomString({ length: 64 });
     Users[username].cookie = cookie; saveUsers();
+    res.cookie('tosochu/game/name', username);
     res.cookie('tosochu/game/cookie', cookie);
     res.json({});
 });
-app.post('/api/create', (req, res) => {
+app.post('/api/room/create', (req, res) => {
     if (req.body.length <= 0) return;
     var roomId = randomString({ length: 4 });
     var items = new Array();
@@ -131,28 +133,36 @@ app.post('/api/create', (req, res) => {
                 items.push({ type: 'line', S: { x, y: MAP_HEIGHT - y }, T: { x: x + BLOCK_LENGTH, y: MAP_HEIGHT - y } });
         }
     }
+    for (var i = RandInt(10, 20); i > 0; i--)
+        items.push({
+            type: 'web', r: RandInt(50, 200),
+            x: RandInt(0, MAP_WIDTH), y: RandInt(0, MAP_HEIGHT),
+        });
     Rooms[roomId] = {
         length: req.body.length * 60,
         status: ROOM_STATUS.PLAYING,
         startAt: new Date().getTime(),
-        player: [{
-            x: RandInt(MAP_WIDTH / 2 - BLOCK_LENGTH * 7, MAP_WIDTH / 2 + BLOCK_LENGTH * 7),
-            y: RandInt(MAP_HEIGHT / 2 - BLOCK_LENGTH * 2, MAP_HEIGHT / 2 + BLOCK_LENGTH * 2),
-            d: { x: 0, y: 1 }, v: 0
-        }],
-        items,
+        player: {}, items,
+    };
+    Rooms[roomId].player[req.user] = {
+        x: RandInt(MAP_WIDTH / 2 - BLOCK_LENGTH * 7, MAP_WIDTH / 2 + BLOCK_LENGTH * 7),
+        y: RandInt(MAP_HEIGHT / 2 - BLOCK_LENGTH * 2, MAP_HEIGHT / 2 + BLOCK_LENGTH * 2),
+        d: { x: 0, y: 1 }, v: 0,
     };
     saveRooms();
     res.json({ roomId: roomId });
 });
-app.get('/room/:roomId', (req, res) => {
-    res.sendFile('assets/room.html', { root: __dirname });
-});
-app.post('/api/loadRoom', (req, res) => {
+app.post('/api/room/load', (req, res) => {
+    if (!req.user) res.json({ error: '请先登录。' });
     var { roomId } = req.body;
     if (!Rooms[roomId]) res.json({ error: '房间不存在。' });
     if (Rooms[roomId].status == ROOM_STATUS.CLOSED) res.json({ error: '房间已关闭。' });
-    // if(Rooms[roomId].status)
+    if (!Rooms[roomId].player[req.user])
+        Rooms[roomId].player[req.user] = {
+            x: RandInt(MAP_WIDTH / 2 - BLOCK_LENGTH * 7, MAP_WIDTH / 2 + BLOCK_LENGTH * 7),
+            y: RandInt(MAP_HEIGHT / 2 - BLOCK_LENGTH * 2, MAP_HEIGHT / 2 + BLOCK_LENGTH * 2),
+            d: { x: 0, y: 1 }, v: 0,
+        };
     res.json({
         startAt: Rooms[roomId].startAt,
         length: Rooms[roomId].length
@@ -160,25 +170,32 @@ app.post('/api/loadRoom', (req, res) => {
 });
 
 app.ws('/room/:roomId', (socket, req) => {
+    if (!req.user) return socket.close();
     var { roomId } = req.params;
-    if (!roomId || !Rooms[roomId]) return;
+    if (!roomId || !Rooms[roomId]) return socket.close();
+    if (!Rooms[roomId].player[req.user])
+        Rooms[roomId].player[req.user] = {
+            x: RandInt(MAP_WIDTH / 2 - BLOCK_LENGTH * 7, MAP_WIDTH / 2 + BLOCK_LENGTH * 7),
+            y: RandInt(MAP_HEIGHT / 2 - BLOCK_LENGTH * 2, MAP_HEIGHT / 2 + BLOCK_LENGTH * 2),
+            d: { x: 0, y: 1 }, v: 0,
+        };
 
     var socketId = randomString(32);
-    Sockets[socketId] = { socket, roomId };
+    Sockets[socketId] = { socket, roomId, user: req.user };
 
     socket.on('message', body => {
         try { body = JSON.parse(body); }
         catch (e) { }
-        if (body.speed > 100) body.speed = 100;
+        if (body.speed > 120) body.speed = 120;
         var { x, y } = body.direction;
         if (Math.hypot(x, y) > 0)
             [x, y] = [x / Math.hypot(x, y), y / Math.hypot(x, y)];
-        Rooms[roomId].player[0].d = { x, y };
-        Rooms[roomId].player[0].v = body.speed;
+        Rooms[roomId].player[req.user].d = { x, y };
+        Rooms[roomId].player[req.user].v = body.speed;
     });
 
-    socket.on('close', (e) => {
-        // delete Sockets[socketId];
+    socket.on('close', e => {
+        delete Sockets[socketId];
     });
 });
 
@@ -203,7 +220,7 @@ setInterval(() => {
             function checkCircleCrossCircle({ x, y, r }, { x1, y1, r1 }) {
                 return Math.hypot(x - x1, y - y1) <= r + r1;
             }
-            function checkCircleCrossItem(player, item) {
+            function checkCircleCrossItem(player, item, onlyPosition) {
                 var flag = false;
                 if (item.type == 'line') {
                     if (item.S.x == item.T.x)
@@ -221,6 +238,10 @@ setInterval(() => {
                         player, { x1: item.T.x, y1: item.T.y, r1: 10 },
                     );
                 }
+                if (item.type == 'web' && onlyPosition)
+                    flag = flag || checkCircleCrossCircle(
+                        player, { x1: item.x, y1: item.y, r1: item.r },
+                    );
                 return flag;
             }
             function checkAllCross(player) {
@@ -238,36 +259,48 @@ setInterval(() => {
                     player, { x1: MAP_WIDTH, x2: MAP_WIDTH * 2, y1: -MAP_HEIGHT, y2: MAP_HEIGHT * 2 },
                 );
                 for (var item of Rooms[roomId].items) {
-                    flag = flag || checkCircleCrossItem(player, item);
+                    flag = flag || checkCircleCrossItem(player, item, false);
+                    if (flag) break;
+                }
+                // return flag;
+                for (var name in Rooms[roomId].player) {
+                    if (name == i) continue;
+                    var { x, y } = Rooms[roomId].player[name];
+                    flag = flag || checkCircleCrossCircle(player, { x1: x, y1: y, r1: PLAYER_R });
                     if (flag) break;
                 }
                 return flag;
             }
+            var maxv = 0.15;
+            for (var item of Rooms[roomId].items)
+                if (item.type == 'web' && checkCircleCrossItem({ x, y, r: PLAYER_R }, item, true)) maxv /= 5;
             const SmallStep = 3;
             var dis = 0;
-            while (dis <= v * 0.15) {
+            while (dis <= v * maxv) {
                 dis += SmallStep;
                 if (checkAllCross({ x: x + d.x * dis, y, r: PLAYER_R })) { dis -= SmallStep; break; }
             }
+            if (dis > 0) Rooms[roomId].player[i].lastOp = new Date().getTime();
             x = Rooms[roomId].player[i].x = x + d.x * dis;
             dis = 0;
-            while (dis <= v * 0.15) {
+            while (dis <= v * maxv) {
                 dis += SmallStep;
                 if (checkAllCross({ x, y: y + d.y * dis, r: PLAYER_R })) { dis -= SmallStep; break; }
             }
+            if (dis > 0) Rooms[roomId].player[i].lastOp = new Date().getTime();
             Rooms[roomId].player[i].y = y + d.y * dis;
         }
     }
     saveRooms();
     for (var socketId in Sockets) {
-        var { roomId, socket } = Sockets[socketId];
+        var { roomId, socket, user } = Sockets[socketId];
         var items = new Array();
         for (var item of Rooms[roomId].items) {
-            var player = Rooms[roomId].player[0]; player.r = VIEW_R;
-            if (checkCircleCrossItem(player, item)) items.push(item);
+            var player = Rooms[roomId].player[user]; player.r = VIEW_R;
+            if (checkCircleCrossItem(player, item, true)) items.push(item);
         }
         socket.send(JSON.stringify({
-            now: Rooms[roomId].player[0],
+            now: Rooms[roomId].player[user],
             player: Rooms[roomId].player,
             items,
         }));

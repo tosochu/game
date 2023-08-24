@@ -48,7 +48,7 @@ $(document).ready(() => {
       y = window.mouse.y - windowHeight() / 2;
     socket.send(JSON.stringify({
       direction: { x, y },
-      speed: Math.hypot(x, y)
+      speed: (Math.min(Math.hypot(x, y), 100)) * (window.mousedown ? 1.2 : 1),
     }));
   }, 100);
 });

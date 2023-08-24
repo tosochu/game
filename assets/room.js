@@ -7,7 +7,7 @@ const VIEW_R = 500;
 const BlockLength = 200;
 
 async function loadRoom(roomId) {
-  var response = await fetch("/api/loadRoom", {
+  var response = await fetch("/api/room/load", {
     "headers": { "content-type": "application/json" },
     "body": JSON.stringify({ roomId }),
     "method": "POST",
@@ -31,13 +31,13 @@ function DrawArrow() {
   var d = ArcSine(x, y);
   var greyness = 330 - Math.min(Math.hypot(x, y), 100) * 1.5;
   setColor(`rgb(${greyness},${greyness},${greyness})`, 'transparent');
+  this.ctx.lineWidth = 12;
   drawLine(
     windowWidth() / 2,
     windowHeight() / 2,
     window.mouse.x,
     window.mouse.y,
     'round',
-    12,
   );
   drawLine(
     window.mouse.x - Math.cos(d - Math.PI / 4) * 30 * (y == 0 && x < 0 ? -1 : 1),
@@ -45,7 +45,6 @@ function DrawArrow() {
     window.mouse.x,
     window.mouse.y,
     'round',
-    12,
   );
   drawLine(
     window.mouse.x - Math.cos(d + Math.PI / 4) * 30 * (y == 0 && x < 0 ? -1 : 1),
@@ -53,7 +52,6 @@ function DrawArrow() {
     window.mouse.x,
     window.mouse.y,
     'round',
-    12,
   );
 }
 
@@ -110,7 +108,19 @@ function DrawBackground() {
 }
 
 function DrawItems() {
+  setColor(`#bbb`, 'transparent');
+  this.ctx.lineWidth = 5;
+  window.items.forEach(item => {
+    if (item.type == 'web') {
+      drawWeb(
+        windowWidth() / 2 + item.x - window.now.x,
+        windowHeight() / 2 + item.y - window.now.y,
+        item.r,
+      );
+    }
+  });
   setColor(`rgb(77,38,0)`, 'transparent');
+  this.ctx.lineWidth = 20;
   window.items.forEach(item => {
     if (item.type == 'line')
       drawLine(
@@ -119,7 +129,6 @@ function DrawItems() {
         windowWidth() / 2 + item.T.x - window.now.x,
         windowHeight() / 2 + item.T.y - window.now.y,
         'round',
-        20,
       );
   });
 }
@@ -128,45 +137,56 @@ function DrawTimeBoard() {
   var second = ((new Date().getTime() - window.gameStartTime) / 1000).toFixed(0);
   var time = `${String(Math.floor((window.gameLength - second) / 60)).padStart(2, '0')}`
     + ` : ${String((window.gameLength - second) % 60).padStart(2, '0')}`;
-  $(".timeBoard-time").html(time);
-  $(".timeBoard-money").html(`${money} pts`);
+  $(".timeboard-time").html(time);
+  $(".timeboard-money").html(`${money} pts`);
 }
 
 function DrawPlayer() {
-  window.player.forEach(player => {
+  for (var user in window.player) {
+    var player = window.player[user];
     setColor('transparent', '#000');
     drawCircle(
       windowWidth() / 2 + player.x - window.now.x,
       windowHeight() / 2 + player.y - window.now.y,
       20,
     );
-  });
+    this.ctx.lineWidth = 1;
+    setColor('#000', '#fff');
+    drawCenterText(
+      windowWidth() / 2 + player.x - window.now.x,
+      windowHeight() / 2 + player.y - window.now.y - 25,
+      '20px Consolas',
+      user,
+    )
+  };
 }
 
 function DrawShadow() {
   setColor('transparent', '#000');
   for (var item of window.items) {
-    var { S: { x: x1, y: y1 }, T: { x: x2, y: y2 } } = item;
-    x1 -= window.now.x, y1 -= window.now.y;
-    x2 -= window.now.x, y2 -= window.now.y;
-    this.ctx.lineWidth = 10;
-    this.ctx.beginPath();
-    this.ctx.moveTo(
-      windowWidth() / 2 + x2,
-      windowHeight() / 2 + y2,
-    );
-    this.ctx.lineTo(
-      windowWidth() / 2 + x1,
-      windowHeight() / 2 + y1,
-    );
-    var tmp = ArcSine(x2, y2) - ArcSine(x1, y1);
-    if (tmp < 0) tmp += Math.PI * 2;
-    this.ctx.arc(
-      windowWidth() / 2, windowHeight() / 2,
-      VIEW_R * 2, ArcSine(x1, y1), ArcSine(x2, y2),
-      tmp > Math.PI
-    );
-    this.ctx.fill();
+    if (item.type == 'line') {
+      var { S: { x: x1, y: y1 }, T: { x: x2, y: y2 } } = item;
+      x1 -= window.now.x, y1 -= window.now.y;
+      x2 -= window.now.x, y2 -= window.now.y;
+      this.ctx.lineWidth = 10;
+      this.ctx.beginPath();
+      this.ctx.moveTo(
+        windowWidth() / 2 + x2,
+        windowHeight() / 2 + y2,
+      );
+      this.ctx.lineTo(
+        windowWidth() / 2 + x1,
+        windowHeight() / 2 + y1,
+      );
+      var tmp = ArcSine(x2, y2) - ArcSine(x1, y1);
+      if (tmp < 0) tmp += Math.PI * 2;
+      this.ctx.arc(
+        windowWidth() / 2, windowHeight() / 2,
+        VIEW_R * 2, ArcSine(x1, y1), ArcSine(x2, y2),
+        tmp > Math.PI
+      );
+      this.ctx.fill();
+    }
   }
 }
 
@@ -180,13 +200,20 @@ function DrawSmallMap() {
   function getWidth(l) { return l / MAP_WIDTH * mapW; }
   setColor('transparent', '#88888888');
   drawRoundRectangle(mapX, mapY, mapW, mapH, 5);
-  setColor('blue', 'transparent');
+  setColor('green', 'transparent');
+  this.ctx.lineWidth = 1;
   drawRectangle(
     getX(MAP_WIDTH / 2 - BlockLength * 8),
     getY(MAP_HEIGHT / 2 - BlockLength * 3),
     getWidth(BlockLength * 16),
     getWidth(BlockLength * 6),
   );
+  setColor('transparent', 'blue');
+  if (window.cheatMode || true)
+    for (var user in window.player) {
+      var player = window.player[user];
+      drawCircle(getX(player.x), getY(player.y), getWidth(200));
+    }
   setColor('transparent', 'red');
   drawCircle(getX(window.now.x), getY(window.now.y), getWidth(200));
 }
@@ -216,9 +243,9 @@ function Draw() {
     DrawArrow();
     DrawBackground();
     DrawItems();
-    DrawShadow();
     DrawTimeBoard();
     DrawPlayer();
+    DrawShadow();
     this.ctx.restore();
     DrawSmallMap();
   }
@@ -230,9 +257,11 @@ $(document).ready(() => {
   window.gameStage = GAME_STAGE.LOADING_ROOM;
   window.money = 0;
   var canvas = $("#gameCanvas")[0];
-  $('body').mousemove(e => {
-    window.mouse = { x: e.clientX, y: e.clientY };
-  });
+  $('body').mousemove(e => window.mouse = { x: e.clientX, y: e.clientY });
+  $(document).mousedown(() => window.mousedown = true);
+  $(document).mouseup(() => window.mousedown = false);
+  $(document).keypress(e => { if (e.keyCode == 32) window.quickMode = true; });
+  $(document).keyup(e => { if (e.keyCode == 32) window.quickMode = false; });
   this.ctx = canvas.getContext("2d");
   setInterval(Draw, 50);
   window.smallMapLength = MIN_SMALL_MAP;
