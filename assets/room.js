@@ -156,7 +156,7 @@ function DrawPlayer() {
       windowWidth() / 2 + player.x - window.now.x,
       windowHeight() / 2 + player.y - window.now.y - 25,
       '20px Consolas',
-      user,
+      player.type == 'hunter' ? `Hunter${user}` : user,
     )
   };
 }
