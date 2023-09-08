@@ -20,6 +20,7 @@ const {
     checkCircleCrossCircle,
     checkCircleCrossItem,
     checkCircleCrossRectangle,
+    checkShadowContainCircle,
     generateRoom, generateHunters,
 } = require('./lib/utils.js');
 
@@ -107,15 +108,15 @@ app.post('/api/room/create', (req, res) => {
     res.json({ roomId: roomId });
 });
 app.post('/api/room/load', (req, res) => {
-    if (!req.user) res.json({ error: '请先登录。' });
+    if (!req.user) return res.json({ error: '请先登录。' });
     var { roomId } = req.body;
-    if (!Rooms[roomId]) res.json({ error: '房间不存在。' });
-    if (Rooms[roomId].status == ROOM_STATUS.CLOSED) res.json({ error: '房间已关闭。' });
+    if (!Rooms[roomId]) return res.json({ error: '房间不存在。' });
+    if (Rooms[roomId].status == ROOM_STATUS.CLOSED) return res.json({ error: '房间已关闭。' });
     if (!Rooms[roomId].player[req.user])
         Rooms[roomId].player[req.user] = {
             x: RandInt(MAP_WIDTH / 2 - BLOCK_LENGTH * 7, MAP_WIDTH / 2 + BLOCK_LENGTH * 7),
             y: RandInt(MAP_HEIGHT / 2 - BLOCK_LENGTH * 2, MAP_HEIGHT / 2 + BLOCK_LENGTH * 2),
-            d: { x: 0, y: 1 }, v: 0,
+            type: 'fugitive', d: { x: 0, y: 1 }, v: 0,
         };
     res.json({
         startAt: Rooms[roomId].startAt,
@@ -131,7 +132,7 @@ app.ws('/room/:roomId', (socket, req) => {
         Rooms[roomId].player[req.user] = {
             x: RandInt(MAP_WIDTH / 2 - BLOCK_LENGTH * 7, MAP_WIDTH / 2 + BLOCK_LENGTH * 7),
             y: RandInt(MAP_HEIGHT / 2 - BLOCK_LENGTH * 2, MAP_HEIGHT / 2 + BLOCK_LENGTH * 2),
-            d: { x: 0, y: 1 }, v: 0,
+            type: 'fugitive', d: { x: 0, y: 1 }, v: 0,
         };
 
     var socketId = randomString(32);
@@ -156,8 +157,8 @@ app.ws('/room/:roomId', (socket, req) => {
 setInterval(() => {
     for (var roomId in Rooms) {
         for (var i in Rooms[roomId].player) {
-            var { d, v } = Rooms[roomId].player[i];
-            var { x, y } = Rooms[roomId].player[i];
+            var gameOver = false;
+            var { d, v, x, y } = Rooms[roomId].player[i];
             function checkAllCross(player) {
                 var flag = false;
                 flag = flag || checkCircleCrossRectangle(
@@ -178,12 +179,22 @@ setInterval(() => {
                 }
                 // return flag;
                 for (var name in Rooms[roomId].player) {
-                    if (name == i) continue;
+                    if (name == i || Rooms[roomId].player[name].type != 'fugitive'
+                        || Rooms[roomId].player[i].type != 'fugitive') continue;
                     var { x, y } = Rooms[roomId].player[name];
                     flag = flag || checkCircleCrossCircle(player, { x1: x, y1: y, r1: PLAYER_R });
                     if (flag) break;
                 }
                 return flag;
+            }
+            function checkGameOver(player) {
+                for (var name in Rooms[roomId].player) {
+                    if (name == i || Rooms[roomId].player[name].type
+                        == Rooms[roomId].player[i].type) continue;
+                    var { x, y } = Rooms[roomId].player[name];
+                    gameOver = gameOver || checkCircleCrossCircle(player, { x1: x, y1: y, r1: PLAYER_R });
+                    if (gameOver) break;
+                }
             }
             var maxv = 0.15;
             for (var item of Rooms[roomId].items)
@@ -193,6 +204,7 @@ setInterval(() => {
             while (dis <= v * maxv) {
                 dis += SmallStep;
                 if (checkAllCross({ x: x + d.x * dis, y, r: PLAYER_R })) { dis -= SmallStep; break; }
+                checkGameOver({ x: x + d.x * dis, y, r: PLAYER_R });
             }
             if (dis > 0) Rooms[roomId].player[i].lastOp = new Date().getTime();
             x = Rooms[roomId].player[i].x = x + d.x * dis;
@@ -200,23 +212,54 @@ setInterval(() => {
             while (dis <= v * maxv) {
                 dis += SmallStep;
                 if (checkAllCross({ x, y: y + d.y * dis, r: PLAYER_R })) { dis -= SmallStep; break; }
+                checkGameOver({ x: x + d.x * dis, y, r: PLAYER_R });
             }
             if (dis > 0) Rooms[roomId].player[i].lastOp = new Date().getTime();
             Rooms[roomId].player[i].y = y + d.y * dis;
+            if (gameOver && Rooms[roomId].player[i].type == 'fugitive') {
+                console.log(i)
+                delete Rooms[roomId].player[i];
+                for (var socketId in Sockets) {
+                    var { socket, user } = Sockets[socketId];
+                    if (user == i) {
+                        socket.send(JSON.stringify({ alert: '你死了' }));
+                        socket.close(); delete Sockets[socketId];
+                    }
+                }
+            }
         }
     }
     saveRooms();
     for (var socketId in Sockets) {
         var { roomId, socket, user } = Sockets[socketId];
-        var items = new Array();
+        var items = [], canSeePlayers = {};
+        var player = Rooms[roomId].player[user]; player.r = VIEW_R;
         for (var item of Rooms[roomId].items) {
-            var player = Rooms[roomId].player[user]; player.r = VIEW_R;
-            if (checkCircleCrossItem(player, item, true)) items.push(item);
+            var canSee = checkCircleCrossItem(player, item, true);
+            if (item.type == 'line') {
+                var seeS = true, seeT = true;
+                for (var i of Rooms[roomId].items)
+                    if (i.type == 'line') {
+                        seeS = seeS && !checkShadowContainCircle(player.x, player.y, { x: item.S.x, y: item.S.y, r: 10 }, i.S.x, i.S.y, i.T.x, i.T.y);
+                        seeT = seeT && !checkShadowContainCircle(player.x, player.y, { x: item.T.x, y: item.T.y, r: 10 }, i.S.x, i.S.y, i.T.x, i.T.y);
+                        if (!seeS && !seeT) break;
+                    }
+                canSee = canSee && (seeS || seeT);
+            }
+            if (canSee) items.push(item);
+        }
+        for (var pl_name in Rooms[roomId].player) {
+            if (pl_name == user) { canSeePlayers[pl_name] = Rooms[roomId].player[pl_name]; continue; }
+            var pl = Rooms[roomId].player[pl_name]; pl.r = PLAYER_R;
+            var canSee = checkCircleCrossCircle(pl, { x1: player.x, y1: player.y, r1: VIEW_R });
+            for (var i of Rooms[roomId].items)
+                if (i.type == 'line') canSee = canSee &&
+                    !checkShadowContainCircle(player.x, player.y, pl, i.S.x, i.S.y, i.T.x, i.T.y);
+            if (canSee) canSeePlayers[pl_name] = Rooms[roomId].player[pl_name];
         }
         socket.send(JSON.stringify({
             now: Rooms[roomId].player[user],
-            player: Rooms[roomId].player,
-            items,
+            player: canSeePlayers, items,
         }));
     }
 }, 100);
