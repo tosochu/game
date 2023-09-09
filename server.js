@@ -154,8 +154,9 @@ app.ws('/room/:roomId', (socket, req) => {
     });
 });
 
-setInterval(() => {
-    for (var roomId in Rooms) {
+setInterval(async () => {
+    var tasks = [];
+    for (var roomId in Rooms) tasks.push((async () => {
         for (var i in Rooms[roomId].player) {
             var gameOver = false;
             var { d, v, x, y } = Rooms[roomId].player[i];
@@ -228,7 +229,8 @@ setInterval(() => {
                 }
             }
         }
-    }
+    })());
+    await Promise.all(tasks);
     saveRooms();
     for (var socketId in Sockets) {
         var { roomId, socket, user } = Sockets[socketId];
