@@ -10,46 +10,33 @@ html, body {
 canvas {
     display: block;
 }
-.window-left {
-    position: fixed;
-    left: 0;
-}
-.window-right {
-    position: fixed;
-    right: 0;
-}
-.window-top {
-    position: fixed;
-    top: 0;
-}
-.window-bottom {
-    position: fixed;
-    bottom: 0;
-}
 
 .timeBoard {
     width: 150px;
     background-color: #888888bb;
     border-radius: 10px;
+    position: fixed;
+    right: 0;
+    bottom: 0;
 }
-.timeBoard-text {
-    margin: 5px 0;
+.timeBoard-header {
+    margin: 5px 0 !important;
     text-align: center;
-    padding: 0 5px;
+    padding: 0 5px !important;
 }
 .timeBoard-time {
-    margin: 5px 10px;
+    margin: 5px 10px !important;
     width: 80%;
     background-color: #bbbbbb66;
     text-align: center;
-    padding: 3px;
+    padding: 3px !important;
     border-radius: 5px;
 }
 .timeBoard-money {
-    margin: 5px 10px;
+    margin: 5px 10px 8px !important;
     width: 80%;
     background-color: #bbbbbb66;
     text-align: right;
-    padding: 3px;
+    padding: 3px !important;
     border-radius: 5px;
 }

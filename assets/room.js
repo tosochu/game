@@ -137,8 +137,8 @@ function DrawTimeBoard() {
   var second = ((new Date().getTime() - window.gameStartTime) / 1000).toFixed(0);
   var time = `${String(Math.floor((window.gameLength - second) / 60)).padStart(2, '0')}`
     + ` : ${String((window.gameLength - second) % 60).padStart(2, '0')}`;
-  $(".timeboard-time").html(time);
-  $(".timeboard-money").html(`${money} pts`);
+  $(".timeBoard-time").html(time);
+  $(".timeBoard-money").html(`${money} pts`);
 }
 
 function DrawPlayer() {
