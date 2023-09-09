@@ -232,13 +232,15 @@ setInterval(() => {
     saveRooms();
     for (var socketId in Sockets) {
         var { roomId, socket, user } = Sockets[socketId];
-        var items = [], canSeePlayers = {};
+        var items = [], canSeePlayers = {}, partItems = [];
         var player = Rooms[roomId].player[user]; player.r = VIEW_R;
-        for (var item of Rooms[roomId].items) {
+        for (var item of Rooms[roomId].items)
+            if (checkCircleCrossItem(player, item, true)) partItems.push(item);
+        for (var item of partItems) {
             var canSee = checkCircleCrossItem(player, item, true);
             if (item.type == 'line') {
                 var seeS = true, seeT = true;
-                for (var i of Rooms[roomId].items)
+                for (var i of partItems)
                     if (i.type == 'line') {
                         seeS = seeS && !checkShadowContainCircle(player.x, player.y, { x: item.S.x, y: item.S.y, r: 10 }, i.S.x, i.S.y, i.T.x, i.T.y);
                         seeT = seeT && !checkShadowContainCircle(player.x, player.y, { x: item.T.x, y: item.T.y, r: 10 }, i.S.x, i.S.y, i.T.x, i.T.y);

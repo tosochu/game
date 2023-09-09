@@ -9,5 +9,29 @@
     "fs-extra": "^11.1.1",
     "random-string": "^0.2.0",
     "yamljs": "^0.3.0"
-  }
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "name": "tosochu_game",
+  "version": "0.0.1",
+  "description": "A small game",
+  "main": "server.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tosochu/game.git"
+  },
+  "keywords": [
+    "game"
+  ],
+  "author": "Milmon <milmon@qq.com>",
+  "license": "AGPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/tosochu/game/issues"
+  },
+  "homepage": "https://github.com/tosochu/game#readme"
 }

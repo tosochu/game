@@ -50,5 +50,5 @@ $(document).ready(() => {
       direction: { x, y },
       speed: (Math.min(Math.hypot(x, y), 100)) * (window.mousedown ? 1.2 : 1),
     }));
-  }, 100);
+  }, 50);
 });
