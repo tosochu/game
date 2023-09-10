@@ -229,7 +229,6 @@ setInterval(async () => {
             if (dis > 0) Rooms[roomId].player[i].lastOp = new Date().getTime();
             Rooms[roomId].player[i].y = y + d.y * dis;
             if (gameOver && Rooms[roomId].player[i].type == 'fugitive') {
-                console.log(i)
                 delete Rooms[roomId].player[i];
                 for (var socketId in Sockets) {
                     var { socket, user } = Sockets[socketId];
@@ -257,6 +256,7 @@ setInterval(async () => {
                     .concat(getPointToCircleTangent(player.x, player.y, { x: item.T.x, y: item.T.y, r: 10 }));
                 for (var i of partItems)
                     if (i.type == 'line') {
+                        if (i == item) continue;
                         see1 = see1 && !checkSegmentCrossSegment(i.S, i.T, player, tagents[0]);
                         see2 = see2 && !checkSegmentCrossSegment(i.S, i.T, player, tagents[1]);
                         see3 = see3 && !checkSegmentCrossSegment(i.S, i.T, player, tagents[2]);
