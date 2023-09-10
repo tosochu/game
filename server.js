@@ -17,11 +17,14 @@ const { ROOM_STATUS, PLAYER_STATUS } = require('./lib/status.js');
 const {
     RandInt, VIEW_R, PLAYER_R,
     MAP_WIDTH, MAP_HEIGHT, BLOCK_LENGTH,
+    checkSegmentCrossSegment,
     checkCircleCrossCircle,
     checkCircleCrossItem,
     checkCircleCrossRectangle,
     checkShadowContainCircle,
+    getPointToCircleTangent,
     generateRoom, generateHunters,
+    planShortestPath,
 } = require('./lib/utils.js');
 
 var Users = {}, Rooms = {}, Sockets = {};
@@ -158,6 +161,14 @@ setInterval(async () => {
     var tasks = [];
     for (var roomId in Rooms) tasks.push((async () => {
         for (var i in Rooms[roomId].player) {
+            if (Rooms[roomId].player[i].type != 'hunter') continue;
+            var { x, y } = Rooms[roomId].player[i];
+            planShortestPath(Rooms[roomId].items, x, y, x, y);
+        }
+    })());
+    await Promise.all(tasks); tasks = [];
+    for (var roomId in Rooms) tasks.push((async () => {
+        for (var i in Rooms[roomId].player) {
             var gameOver = false;
             var { d, v, x, y } = Rooms[roomId].player[i];
             function checkAllCross(player) {
@@ -239,27 +250,34 @@ setInterval(async () => {
         for (var item of Rooms[roomId].items)
             if (checkCircleCrossItem(player, item, true)) partItems.push(item);
         for (var item of partItems) {
-            var canSee = checkCircleCrossItem(player, item, true);
+            var canSee = true;
             if (item.type == 'line') {
-                var seeS = true, seeT = true;
+                var see1 = true, see2 = true, see3 = true, see4 = true;
+                var tagents = getPointToCircleTangent(player.x, player.y, { x: item.S.x, y: item.S.y, r: 10 })
+                    .concat(getPointToCircleTangent(player.x, player.y, { x: item.T.x, y: item.T.y, r: 10 }));
                 for (var i of partItems)
                     if (i.type == 'line') {
-                        seeS = seeS && !checkShadowContainCircle(player.x, player.y, { x: item.S.x, y: item.S.y, r: 10 }, i.S.x, i.S.y, i.T.x, i.T.y);
-                        seeT = seeT && !checkShadowContainCircle(player.x, player.y, { x: item.T.x, y: item.T.y, r: 10 }, i.S.x, i.S.y, i.T.x, i.T.y);
-                        if (!seeS && !seeT) break;
+                        see1 = see1 && !checkSegmentCrossSegment(i.S, i.T, player, tagents[0]);
+                        see2 = see2 && !checkSegmentCrossSegment(i.S, i.T, player, tagents[1]);
+                        see3 = see3 && !checkSegmentCrossSegment(i.S, i.T, player, tagents[2]);
+                        see4 = see4 && !checkSegmentCrossSegment(i.S, i.T, player, tagents[3]);
+                        if (!(see1 || see2 || see3 || see4)) break;
                     }
-                canSee = canSee && (seeS || seeT);
+                canSee = canSee && (see1 || see2 || see3 || see4);
             }
             if (canSee) items.push(item);
         }
         for (var pl_name in Rooms[roomId].player) {
             if (pl_name == user) { canSeePlayers[pl_name] = Rooms[roomId].player[pl_name]; continue; }
             var pl = Rooms[roomId].player[pl_name]; pl.r = PLAYER_R;
-            var canSee = checkCircleCrossCircle(pl, { x1: player.x, y1: player.y, r1: VIEW_R });
+            var canSeeS = checkCircleCrossCircle(pl, { x1: player.x, y1: player.y, r1: VIEW_R }), canSeeT = true;
+            if (!canSeeS) continue;
+            var tagents = getPointToCircleTangent(player.x, player.y, pl);
             for (var i of Rooms[roomId].items)
-                if (i.type == 'line') canSee = canSee &&
-                    !checkShadowContainCircle(player.x, player.y, pl, i.S.x, i.S.y, i.T.x, i.T.y);
-            if (canSee) canSeePlayers[pl_name] = Rooms[roomId].player[pl_name];
+                if (i.type == 'line')
+                    canSeeS = canSeeS && !checkSegmentCrossSegment(i.S, i.T, player, tagents[0]),
+                        canSeeT = canSeeT && !checkSegmentCrossSegment(i.S, i.T, player, tagents[1]);
+            if (canSeeS || canSeeT) canSeePlayers[pl_name] = Rooms[roomId].player[pl_name];
         }
         socket.send(JSON.stringify({
             now: Rooms[roomId].player[user],

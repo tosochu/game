@@ -209,10 +209,10 @@ function DrawSmallMap() {
     getWidth(BlockLength * 6),
   );
   setColor('transparent', 'blue');
-  if (window.cheatMode || true)
+  if (window.settings.displayTeammates)
     for (var user in window.player) {
       var player = window.player[user];
-      drawCircle(getX(player.x), getY(player.y), getWidth(200));
+      if (player.type == 'fugitive') drawCircle(getX(player.x), getY(player.y), getWidth(200));
     }
   setColor('transparent', 'red');
   drawCircle(getX(window.now.x), getY(window.now.y), getWidth(200));
@@ -254,6 +254,7 @@ function Draw() {
 $(document).ready(() => {
   initWindow();
   initMap();
+  initSettings();
   window.gameStage = GAME_STAGE.LOADING_ROOM;
   window.money = 0;
   var canvas = $("#gameCanvas")[0];
