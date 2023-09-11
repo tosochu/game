@@ -158,7 +158,7 @@ setInterval(async () => {
     var tasks = [];
     for (var roomId in Rooms) tasks.push((async () => {
         for (var i in Rooms[roomId].player) {
-            if (Rooms[roomId].player[i].type != 'hunter') continue;
+            if (Rooms[roomId].player[i].type != 'hunter' || Users[i]) continue;
             var { x, y } = Rooms[roomId].player[i];
             Rooms[roomId].player[i] = Object.assign(Rooms[roomId].player[i],
                 planPath(x, y, Rooms[roomId].player[i].data, getAllCanSee(Rooms[roomId], i)));
@@ -209,6 +209,7 @@ setInterval(async () => {
             var maxv = 0.15;
             for (var item of Rooms[roomId].items)
                 if (item.type == 'web' && checkCircleCrossItem({ x, y, r: PLAYER_R }, item, true)) maxv /= 5;
+            if (Rooms[roomId].player[i].type == 'hunter') maxv *= 1.2;
             const SmallStep = 3;
             var dis = 0;
             while (dis <= v * maxv) {
@@ -226,8 +227,14 @@ setInterval(async () => {
             }
             if (dis > 0) Rooms[roomId].player[i].lastOp = new Date().getTime();
             Rooms[roomId].player[i].y = y + d.y * dis;
+            checkGameOver({ x: Rooms[roomId].player[i].x, y: Rooms[roomId].player[i].y, r: PLAYER_R });
             if (gameOver && Rooms[roomId].player[i].type == 'fugitive') {
                 // TODO: change status of player
+                Rooms[roomId].player[i] = {
+                    x: RandInt(MAP_WIDTH / 2 - BLOCK_LENGTH * 7, MAP_WIDTH / 2 + BLOCK_LENGTH * 7),
+                    y: RandInt(MAP_HEIGHT / 2 - BLOCK_LENGTH * 2, MAP_HEIGHT / 2 + BLOCK_LENGTH * 2),
+                    type: 'fugitive', d: { x: 0, y: 1 }, v: 0,
+                };
                 // delete Rooms[roomId].player[i];
                 // for (var socketId in Sockets) {
                 //     var { socket, user } = Sockets[socketId];

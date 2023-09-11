@@ -144,7 +144,7 @@ function DrawTimeBoard() {
 function DrawPlayer() {
   for (var user in window.player) {
     var player = window.player[user];
-    setColor('transparent', '#000');
+    setColor('transparent', player.type == 'fugitive' ? 'blue' : 'red');
     drawCircle(
       windowWidth() / 2 + player.x - window.now.x,
       windowHeight() / 2 + player.y - window.now.y,
