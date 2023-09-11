@@ -17,14 +17,11 @@ const { ROOM_STATUS, PLAYER_STATUS } = require('./lib/status.js');
 const {
     RandInt, VIEW_R, PLAYER_R,
     MAP_WIDTH, MAP_HEIGHT, BLOCK_LENGTH,
-    checkSegmentCrossSegment,
     checkCircleCrossCircle,
     checkCircleCrossItem,
     checkCircleCrossRectangle,
-    checkShadowContainCircle,
-    getPointToCircleTangent,
     generateRoom, generateHunters,
-    planShortestPath,
+    getAllCanSee, planPath,
 } = require('./lib/utils.js');
 
 var Users = {}, Rooms = {}, Sockets = {};
@@ -163,7 +160,8 @@ setInterval(async () => {
         for (var i in Rooms[roomId].player) {
             if (Rooms[roomId].player[i].type != 'hunter') continue;
             var { x, y } = Rooms[roomId].player[i];
-            planShortestPath(Rooms[roomId].items, x, y, x, y);
+            Rooms[roomId].player[i] = Object.assign(Rooms[roomId].player[i],
+                planPath(x, y, Rooms[roomId].player[i].data, getAllCanSee(Rooms[roomId], i)));
         }
     })());
     await Promise.all(tasks); tasks = [];
@@ -229,14 +227,15 @@ setInterval(async () => {
             if (dis > 0) Rooms[roomId].player[i].lastOp = new Date().getTime();
             Rooms[roomId].player[i].y = y + d.y * dis;
             if (gameOver && Rooms[roomId].player[i].type == 'fugitive') {
-                delete Rooms[roomId].player[i];
-                for (var socketId in Sockets) {
-                    var { socket, user } = Sockets[socketId];
-                    if (user == i) {
-                        socket.send(JSON.stringify({ alert: '你死了' }));
-                        socket.close(); delete Sockets[socketId];
-                    }
-                }
+                // TODO: change status of player
+                // delete Rooms[roomId].player[i];
+                // for (var socketId in Sockets) {
+                //     var { socket, user } = Sockets[socketId];
+                //     if (user == i) {
+                //         socket.send(JSON.stringify({ alert: '你死了' }));
+                //         socket.close(); delete Sockets[socketId];
+                //     }
+                // }
             }
         }
     })());
@@ -244,45 +243,7 @@ setInterval(async () => {
     saveRooms();
     for (var socketId in Sockets) {
         var { roomId, socket, user } = Sockets[socketId];
-        var items = [], canSeePlayers = {}, partItems = [];
-        var player = Rooms[roomId].player[user]; player.r = VIEW_R;
-        for (var item of Rooms[roomId].items)
-            if (checkCircleCrossItem(player, item, true)) partItems.push(item);
-        for (var item of partItems) {
-            var canSee = true;
-            if (item.type == 'line') {
-                var see1 = true, see2 = true, see3 = true, see4 = true;
-                var tagents = getPointToCircleTangent(player.x, player.y, { x: item.S.x, y: item.S.y, r: 10 })
-                    .concat(getPointToCircleTangent(player.x, player.y, { x: item.T.x, y: item.T.y, r: 10 }));
-                for (var i of partItems)
-                    if (i.type == 'line') {
-                        if (i == item) continue;
-                        see1 = see1 && !checkSegmentCrossSegment(i.S, i.T, player, tagents[0]);
-                        see2 = see2 && !checkSegmentCrossSegment(i.S, i.T, player, tagents[1]);
-                        see3 = see3 && !checkSegmentCrossSegment(i.S, i.T, player, tagents[2]);
-                        see4 = see4 && !checkSegmentCrossSegment(i.S, i.T, player, tagents[3]);
-                        if (!(see1 || see2 || see3 || see4)) break;
-                    }
-                canSee = canSee && (see1 || see2 || see3 || see4);
-            }
-            if (canSee) items.push(item);
-        }
-        for (var pl_name in Rooms[roomId].player) {
-            if (pl_name == user) { canSeePlayers[pl_name] = Rooms[roomId].player[pl_name]; continue; }
-            var pl = Rooms[roomId].player[pl_name]; pl.r = PLAYER_R;
-            var canSeeS = checkCircleCrossCircle(pl, { x1: player.x, y1: player.y, r1: VIEW_R }), canSeeT = true;
-            if (!canSeeS) continue;
-            var tagents = getPointToCircleTangent(player.x, player.y, pl);
-            for (var i of Rooms[roomId].items)
-                if (i.type == 'line')
-                    canSeeS = canSeeS && !checkSegmentCrossSegment(i.S, i.T, player, tagents[0]),
-                        canSeeT = canSeeT && !checkSegmentCrossSegment(i.S, i.T, player, tagents[1]);
-            if (canSeeS || canSeeT) canSeePlayers[pl_name] = Rooms[roomId].player[pl_name];
-        }
-        socket.send(JSON.stringify({
-            now: Rooms[roomId].player[user],
-            player: canSeePlayers, items,
-        }));
+        socket.send(JSON.stringify(Object.assign({ now: Rooms[roomId].player[user] }, getAllCanSee(Rooms[roomId], user))));
     }
 }, 100);
 

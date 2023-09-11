@@ -212,7 +212,8 @@ function DrawSmallMap() {
   if (window.settings.displayTeammates)
     for (var user in window.player) {
       var player = window.player[user];
-      if (player.type == 'fugitive') drawCircle(getX(player.x), getY(player.y), getWidth(200));
+      if (window.settings.displayAll || player.type == 'fugitive')
+        drawCircle(getX(player.x), getY(player.y), getWidth(200));
     }
   setColor('transparent', 'red');
   drawCircle(getX(window.now.x), getY(window.now.y), getWidth(200));
