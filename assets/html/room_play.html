@@ -3,6 +3,7 @@
 
 <head>
   <script src="/asset/jquery-3.7.0.min.js"></script>
+  <script src="/asset/script/room.js"></script>
   <script src="/asset/utils.js"></script>
   <script src="/asset/map.js"></script>
   <script src="/asset/socket.js"></script>
@@ -11,15 +12,16 @@
   <link href="/asset/style.css" rel="stylesheet">
 </head>
 
-<body>
+<body class="page-playInRoom">
   <canvas id="gameCanvas">
     您的浏览器不支持 canvas.
   </canvas>
   <div class="timeBoard">
-    <div class="timeBoard-header">游戏剩余时间</div>
+    <div class="timeBoard-header">游戏还未开始</div>
     <div class="timeBoard-time"></div>
     <div class="timeBoard-money"></div>
   </div>
+  <div class="playerList"> </div>
 </body>
 
 </html>

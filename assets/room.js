@@ -1,15 +1,19 @@
 const GAME_STAGE = {
   LOADING_ROOM: 1,
-  WAITING_START: 2,
-  PLAYING: 3
+  PLAYING: 2,
+};
+const ROOM_STATUS = {
+  WAITING: 1,
+  PLAYING: 2,
+  CLOSED: 3,
 };
 const VIEW_R = 500;
 const BlockLength = 200;
 
-async function loadRoom(roomId) {
+async function loadRoom() {
   var response = await fetch("/api/room/load", {
     "headers": { "content-type": "application/json" },
-    "body": JSON.stringify({ roomId }),
+    "body": JSON.stringify({ roomId: window.roomId }),
     "method": "POST",
   });
   var room = await response.json();
@@ -17,7 +21,9 @@ async function loadRoom(roomId) {
     alert(room.error);
     window.location.pathname = '';
   }
-  window.gameStartTime = room.startAt;
+  window.isAdmin = room.isAdmin;
+  window.status = room.status;
+  window.gameStartTime = 0;
   window.gameLength = room.length;
   window.gameStage = GAME_STAGE.PLAYING;
 }
@@ -133,14 +139,6 @@ function DrawItems() {
   });
 }
 
-function DrawTimeBoard() {
-  var second = ((new Date().getTime() - window.gameStartTime) / 1000).toFixed(0);
-  var time = `${String(Math.floor((window.gameLength - second) / 60)).padStart(2, '0')}`
-    + ` : ${String((window.gameLength - second) % 60).padStart(2, '0')}`;
-  $(".timeBoard-time").html(time);
-  $(".timeBoard-money").html(`${money} pts`);
-}
-
 function DrawPlayer() {
   for (var user in window.player) {
     var player = window.player[user];
@@ -219,6 +217,38 @@ function DrawSmallMap() {
   drawCircle(getX(window.now.x), getY(window.now.y), getWidth(200));
 }
 
+function UpdateTimeBoard() {
+  if (window.status == ROOM_STATUS.PLAYING) $(".timeBoard-header").html('游戏剩余时间');
+  var nowTime = new Date().getTime(); if (window.status == ROOM_STATUS.WAITING) nowTime = 0;
+  var second = ((nowTime - window.gameStartTime) / 1000).toFixed(0);
+  var time = `${String(Math.floor((window.gameLength - second) / 60)).padStart(2, '0')}`
+    + ` : ${String((window.gameLength - second) % 60).padStart(2, '0')}`;
+  $(".timeBoard-time").html(time);
+  if (window.isAdmin && window.status == ROOM_STATUS.WAITING) {
+    $(".timeBoard-money").addClass('admin');
+    $(".timeBoard-money").removeClass('player');
+    $(".timeBoard-money").html('开始游戏');
+  }
+  else if (window.status == ROOM_STATUS.WAITING) {
+    $(".timeBoard-money").removeClass('admin');
+    $(".timeBoard-money").addClass('player');
+    $(".timeBoard-money").html('等待开始游戏');
+  }
+  else {
+    $(".timeBoard-money").removeClass('admin');
+    $(".timeBoard-money").removeClass('player');
+    $(".timeBoard-money").html(`${money} pts`);
+  }
+}
+
+function UpdatePlayerList() {
+  for (var roommate of window.roommates) {
+    if (window.solvedRoommates.includes(roommate.name)) continue;
+    window.solvedRoommates.push(roommate.name);
+    $('.playerList').append(`<div class="playerList-player ${roommate.type}">${roommate.name}</div>`);
+  }
+}
+
 function Draw() {
   this.ctx.clearRect(0, 0, windowWidth(), windowHeight());
   if (window.gameStage == GAME_STAGE.PLAYING) {
@@ -244,11 +274,12 @@ function Draw() {
     DrawArrow();
     DrawBackground();
     DrawItems();
-    DrawTimeBoard();
     DrawPlayer();
     DrawShadow();
     this.ctx.restore();
     DrawSmallMap();
+    UpdateTimeBoard();
+    UpdatePlayerList();
   }
 }
 
@@ -258,6 +289,8 @@ $(document).ready(() => {
   initSettings();
   window.gameStage = GAME_STAGE.LOADING_ROOM;
   window.money = 0;
+  window.solvedRoommates = [];
+  window.roommates = [];
   var canvas = $("#gameCanvas")[0];
   $('body').mousemove(e => window.mouse = { x: e.clientX, y: e.clientY });
   $(document).mousedown(() => window.mousedown = true);
@@ -274,5 +307,5 @@ $(document).ready(() => {
       && window.mouse.y < smallMapLengthDisplay / MAP_WIDTH * MAP_HEIGHT + 10) smallMapLength = MAX_SMALL_MAP;
     else smallMapLength = MIN_SMALL_MAP;
   }, 50);
-  loadRoom(window.location.pathname.split('/')[2]);
+  loadRoom();
 });

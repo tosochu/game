@@ -102,8 +102,7 @@ app.post('/api/room/create', (req, res) => {
         y: RandInt(MAP_HEIGHT / 2 - BLOCK_LENGTH * 2, MAP_HEIGHT / 2 + BLOCK_LENGTH * 2),
         type: 'fugitive', d: { x: 0, y: 1 }, v: 0,
     };
-    Rooms[roomId].player = Object.assign(Rooms[roomId].player,
-        generateHunters(4, Rooms[roomId].items));
+    Rooms[roomId].admin = req.user;
     saveRooms();
     res.json({ roomId: roomId });
 });
@@ -111,29 +110,46 @@ app.post('/api/room/load', (req, res) => {
     if (!req.user) return res.json({ error: '请先登录。' });
     var { roomId } = req.body;
     if (!Rooms[roomId]) return res.json({ error: '房间不存在。' });
-    if (Rooms[roomId].status == ROOM_STATUS.CLOSED) return res.json({ error: '房间已关闭。' });
-    if (!Rooms[roomId].player[req.user])
+    if (!Rooms[roomId].player[req.user]) {
+        if (Rooms[roomId].status != ROOM_STATUS.WAITING) return res.json({ error: '房间已经开始游戏。' });
         Rooms[roomId].player[req.user] = {
             x: RandInt(MAP_WIDTH / 2 - BLOCK_LENGTH * 7, MAP_WIDTH / 2 + BLOCK_LENGTH * 7),
             y: RandInt(MAP_HEIGHT / 2 - BLOCK_LENGTH * 2, MAP_HEIGHT / 2 + BLOCK_LENGTH * 2),
             type: 'fugitive', d: { x: 0, y: 1 }, v: 0,
         };
+    }
     res.json({
-        startAt: Rooms[roomId].startAt,
-        length: Rooms[roomId].length
+        length: Rooms[roomId].length, status: Rooms[roomId].status,
+        isAdmin: Rooms[roomId].admin == req.user,
     });
 });
+app.post('/api/room/start', (req, res) => {
+    if (!req.user) return res.json({ error: '请先登录。' });
+    var { roomId, hunter } = req.body;
+    if (!Rooms[roomId]) return res.json({ error: '房间不存在。' });
+    if (Rooms[roomId].admin != req.user) return res.json({ error: '您不是房间管理员。' });
+    if (Rooms[roomId].status != ROOM_STATUS.WAITING) return res.json({ error: '房间已经开始游戏。' });
+    var list = []; for (var i = 1; i <= 30; i++)list.push(i);
+    if (!list.includes(hunter)) hunter = 5;
+    Rooms[roomId].player = Object.assign(Rooms[roomId].player,
+        generateHunters(hunter, Rooms[roomId].items));
+    Rooms[roomId].startAt = new Date().getTime();
+    Rooms[roomId].status = ROOM_STATUS.PLAYING;
+    saveRooms(); res.json({});
+})
 
 app.ws('/room/:roomId', (socket, req) => {
     if (!req.user) return socket.close();
     var { roomId } = req.params;
     if (!roomId || !Rooms[roomId]) return socket.close();
-    if (!Rooms[roomId].player[req.user])
+    if (!Rooms[roomId].player[req.user]) {
+        if (Rooms[roomId].status != ROOM_STATUS.WAITING) return res.json({ error: '房间已经开始游戏。' });
         Rooms[roomId].player[req.user] = {
             x: RandInt(MAP_WIDTH / 2 - BLOCK_LENGTH * 7, MAP_WIDTH / 2 + BLOCK_LENGTH * 7),
             y: RandInt(MAP_HEIGHT / 2 - BLOCK_LENGTH * 2, MAP_HEIGHT / 2 + BLOCK_LENGTH * 2),
             type: 'fugitive', d: { x: 0, y: 1 }, v: 0,
         };
+    }
 
     var socketId = randomString(32);
     Sockets[socketId] = { socket, roomId, user: req.user };
@@ -157,12 +173,16 @@ app.ws('/room/:roomId', (socket, req) => {
 setInterval(async () => {
     var tasks = [];
     for (var roomId in Rooms) tasks.push((async () => {
+        var ts = [];
         for (var i in Rooms[roomId].player) {
             if (Rooms[roomId].player[i].type != 'hunter' || Users[i]) continue;
             var { x, y } = Rooms[roomId].player[i];
-            Rooms[roomId].player[i] = Object.assign(Rooms[roomId].player[i],
-                planPath(x, y, Rooms[roomId].player[i].data, getAllCanSee(Rooms[roomId], i)));
+            ts.push((async () => {
+                Rooms[roomId].player[i] = Object.assign(Rooms[roomId].player[i],
+                    planPath(x, y, Rooms[roomId].player[i].data, getAllCanSee(Rooms[roomId], i)));
+            })());
         }
+        await Promise.all(ts);
     })());
     await Promise.all(tasks); tasks = [];
     for (var roomId in Rooms) tasks.push((async () => {
@@ -187,7 +207,6 @@ setInterval(async () => {
                     flag = flag || checkCircleCrossItem(player, item, false);
                     if (flag) break;
                 }
-                // return flag;
                 for (var name in Rooms[roomId].player) {
                     if (name == i || Rooms[roomId].player[name].type != 'fugitive'
                         || Rooms[roomId].player[i].type != 'fugitive') continue;
@@ -235,14 +254,6 @@ setInterval(async () => {
                     y: RandInt(MAP_HEIGHT / 2 - BLOCK_LENGTH * 2, MAP_HEIGHT / 2 + BLOCK_LENGTH * 2),
                     type: 'fugitive', d: { x: 0, y: 1 }, v: 0,
                 };
-                // delete Rooms[roomId].player[i];
-                // for (var socketId in Sockets) {
-                //     var { socket, user } = Sockets[socketId];
-                //     if (user == i) {
-                //         socket.send(JSON.stringify({ alert: '你死了' }));
-                //         socket.close(); delete Sockets[socketId];
-                //     }
-                // }
             }
         }
     })());
@@ -250,7 +261,13 @@ setInterval(async () => {
     saveRooms();
     for (var socketId in Sockets) {
         var { roomId, socket, user } = Sockets[socketId];
-        socket.send(JSON.stringify(Object.assign({ now: Rooms[roomId].player[user] }, getAllCanSee(Rooms[roomId], user))));
+        var { status, startAt } = Rooms[roomId], roommates = [];
+        for (var name in Rooms[roomId].player)
+            if (Users[name]) roommates.push({ name, type: Rooms[roomId].player[name].type });
+        socket.send(JSON.stringify(Object.assign(
+            { now: Rooms[roomId].player[user], roomId, status, startAt, roommates },
+            getAllCanSee(Rooms[roomId], user)
+        )));
     }
 }, 100);
 
