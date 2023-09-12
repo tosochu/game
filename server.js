@@ -102,6 +102,7 @@ app.post('/api/user/login', (req, res) => {
 });
 app.post('/api/room/create', (req, res) => {
     if (req.body.length <= 0) return;
+    if (!req.user) return res.json({ error: '清先登录。' });
     var roomId = randomString({ length: 4 });
     Rooms[roomId] = generateRoom(req.body.length);
     Rooms[roomId].player[req.user] = {

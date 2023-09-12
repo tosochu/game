@@ -8,7 +8,8 @@ $(document).ready(() => {
         "body": JSON.stringify({ length: parseInt($('.game-time').val()) }),
         "method": "POST",
       });
-      var { roomId } = await response.json();
+      var { roomId, error } = await response.json();
+      if (error) return window.alert(error);
       window.location.pathname = `/room/${roomId}`;
     }
   });
