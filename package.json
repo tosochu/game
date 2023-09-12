@@ -1,19 +1,9 @@
 {
-  "dependencies": {
-    "body-parser": "^1.20.2",
-    "cookie-parser": "^1.4.6",
-    "cors": "^2.8.5",
-    "express": "^4.18.2",
-    "express-ws": "^5.0.2",
-    "fs": "^0.0.1-security",
-    "fs-extra": "^11.1.1",
-    "random-string": "^0.2.0",
-    "yamljs": "^0.3.0"
-  },
+  "name": "tosochu_game",
+  "type": "module",
   "scripts": {
     "start": "node server.js"
   },
-  "name": "tosochu_game",
   "version": "0.0.1",
   "description": "A small game",
   "main": "server.js",
@@ -33,5 +23,16 @@
   "bugs": {
     "url": "https://github.com/tosochu/game/issues"
   },
-  "homepage": "https://github.com/tosochu/game#readme"
+  "homepage": "https://github.com/tosochu/game#readme",
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "express-ws": "^5.0.2",
+    "fs": "^0.0.1-security",
+    "fs-extra": "^11.1.1",
+    "random-string": "^0.2.0",
+    "yamljs": "^0.3.0"
+  }
 }

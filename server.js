@@ -1,28 +1,35 @@
-const express = require('express');
-app = express();
-const cors = require('cors');
-app.use(cors());
-const path = require('path');
-const bodyParser = require('body-parser');
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(require('cookie-parser')())
-require('express-ws')(app);
-
-const { readFileSync, existsSync, writeFileSync } = require('fs');
-const { ensureDirSync } = require('fs-extra');
-const randomString = require('random-string');
-const hashPassword = require('./lib/hash.js');
-const { ROOM_STATUS, PLAYER_STATUS } = require('./lib/status.js');
-const {
-    RandInt, VIEW_R, PLAYER_R,
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import bodyParser from 'body-parser';
+import cookieParser from 'cookie-parser';
+import expressWS from 'express-ws';
+import { readFileSync, existsSync, writeFileSync } from 'fs';
+import { ensureDirSync } from 'fs-extra';
+import randomString from 'random-string';
+import {
+    hashPassword,
+    ROOM_STATUS, PLAYER_STATUS,
+    RandInt, PLAYER_R,
     MAP_WIDTH, MAP_HEIGHT, BLOCK_LENGTH,
     checkCircleCrossCircle,
     checkCircleCrossItem,
     checkCircleCrossRectangle,
     generateRoom, generateHunters,
     getAllCanSee, planPath,
-} = require('./lib/utils.js');
+} from './lib/utils.js';
+import { dirname } from "path"
+import { fileURLToPath } from "url"
+
+const app = express();
+app.use(cors());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(cookieParser());
+expressWS(app);
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 var Users = {}, Rooms = {}, Sockets = {};
 ensureDirSync('db');
