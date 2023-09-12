@@ -33,7 +33,7 @@ $(window).resize(initWindow);
 function DrawArrow() {
   var x = window.mouse.x - windowWidth() / 2,
     y = window.mouse.y - windowHeight() / 2;
-  if (Math.hypot(x, y) <= 50) return;
+  if (Math.hypot(x, y) <= 50 || window.isWatching) return;
   var d = ArcSine(x, y);
   var greyness = 330 - Math.min(Math.hypot(x, y), 100) * 1.5;
   setColor(`rgb(${greyness},${greyness},${greyness})`, 'transparent');
@@ -251,9 +251,13 @@ function UpdatePlayerList() {
 
 function Draw() {
   this.ctx.clearRect(0, 0, windowWidth(), windowHeight());
-  if (window.gameStage == GAME_STAGE.PLAYING) {
-    setColor('transparent', '#000');
-    this.ctx.fillRect(0, 0, windowWidth(), windowHeight());
+  setColor('transparent', '#000');
+  this.ctx.fillRect(0, 0, windowWidth(), windowHeight());
+  if (window.status == ROOM_STATUS.CLOSED) {
+    setTimeout(() => { window.location.pathname = '/' }, 3000);
+    clearInterval(window.drawInterval);
+  }
+  else if (window.gameStage == GAME_STAGE.PLAYING) {
     this.ctx.save();
     this.ctx.beginPath();
     var x = window.mouse.x - windowWidth() / 2,
@@ -291,6 +295,7 @@ $(document).ready(() => {
   window.money = 0;
   window.solvedRoommates = [];
   window.roommates = [];
+  window.isWatching = false;
   var canvas = $("#gameCanvas")[0];
   $('body').mousemove(e => window.mouse = { x: e.clientX, y: e.clientY });
   $(document).mousedown(() => window.mousedown = true);
@@ -298,7 +303,7 @@ $(document).ready(() => {
   $(document).keypress(e => { if (e.keyCode == 32) window.quickMode = true; });
   $(document).keyup(e => { if (e.keyCode == 32) window.quickMode = false; });
   this.ctx = canvas.getContext("2d");
-  setInterval(Draw, 50);
+  window.drawInterval = setInterval(Draw, 50);
   window.smallMapLength = MIN_SMALL_MAP;
   window.smallMapLengthDisplay = MIN_SMALL_MAP;
   setInterval(() => {

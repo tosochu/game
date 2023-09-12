@@ -21,6 +21,10 @@ function getMessage(message) {
     window.now = messages.now;
     window.player = messages.player;
     window.items = messages.items;
+    window.status = messages.status;
+    window.gameStartTime = messages.startAt || 0;
+    window.roommates = messages.roommates;
+    window.isWatching = messages.isWatching;
   }
   catch (e) { console.log(e); }
 }
@@ -28,7 +32,7 @@ function getMessage(message) {
 function closeSocket() {
   connected = false;
   setTimeout(() => {
-    socket = new WebSocket(`${window.location.protocol.replace('http', 'ws')}//${window.location.host}/room/${window.location.pathname.split('/')[2]}`);
+    socket = new WebSocket(`${window.location.protocol.replace('http', 'ws')}//${window.location.host}/room/${window.roomId}`);
     socket.onopen = startConnection;
     socket.onmessage = getMessage;
     socket.onclose = closeSocket;
@@ -36,7 +40,8 @@ function closeSocket() {
 }
 
 $(document).ready(() => {
-  socket = new WebSocket(`${window.location.protocol.replace('http', 'ws')}//${window.location.host}/room/${window.location.pathname.split('/')[2]}`);
+  window.roomId = window.location.pathname.split('/')[2];
+  socket = new WebSocket(`${window.location.protocol.replace('http', 'ws')}//${window.location.host}/room/${window.roomId}`);
   socket.onopen = startConnection;
   socket.onmessage = getMessage;
   socket.onclose = closeSocket;

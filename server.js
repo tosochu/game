@@ -9,7 +9,7 @@ import { ensureDirSync } from 'fs-extra';
 import randomString from 'random-string';
 import {
     hashPassword,
-    ROOM_STATUS, PLAYER_STATUS,
+    ROOM_STATUS, PLAYER_STATUS, PLAYER_STATUS_IN_ROOM,
     RandInt, PLAYER_R,
     MAP_WIDTH, MAP_HEIGHT, BLOCK_LENGTH,
     checkCircleCrossCircle,
@@ -107,7 +107,7 @@ app.post('/api/room/create', (req, res) => {
     Rooms[roomId].player[req.user] = {
         x: RandInt(MAP_WIDTH / 2 - BLOCK_LENGTH * 7, MAP_WIDTH / 2 + BLOCK_LENGTH * 7),
         y: RandInt(MAP_HEIGHT / 2 - BLOCK_LENGTH * 2, MAP_HEIGHT / 2 + BLOCK_LENGTH * 2),
-        type: 'fugitive', d: { x: 0, y: 1 }, v: 0,
+        type: 'fugitive', status: PLAYER_STATUS_IN_ROOM.RUNNING, d: { x: 0, y: 1 }, v: 0,
     };
     Rooms[roomId].admin = req.user;
     saveRooms();
@@ -122,8 +122,9 @@ app.post('/api/room/load', (req, res) => {
         Rooms[roomId].player[req.user] = {
             x: RandInt(MAP_WIDTH / 2 - BLOCK_LENGTH * 7, MAP_WIDTH / 2 + BLOCK_LENGTH * 7),
             y: RandInt(MAP_HEIGHT / 2 - BLOCK_LENGTH * 2, MAP_HEIGHT / 2 + BLOCK_LENGTH * 2),
-            type: 'fugitive', d: { x: 0, y: 1 }, v: 0,
+            type: 'fugitive', status: PLAYER_STATUS_IN_ROOM.RUNNING, d: { x: 0, y: 1 }, v: 0,
         };
+        saveRooms();
     }
     res.json({
         length: Rooms[roomId].length, status: Rooms[roomId].status,
@@ -142,6 +143,12 @@ app.post('/api/room/start', (req, res) => {
         generateHunters(hunter, Rooms[roomId].items));
     Rooms[roomId].startAt = new Date().getTime();
     Rooms[roomId].status = ROOM_STATUS.PLAYING;
+    var playerName = [];
+    for (var player in Rooms[roomId].player)
+        if (Rooms[roomId].player[player].type == 'fugitive') playerName.push(player);
+    for (var i = 1; i < playerName.length; i++)
+        Rooms[roomId].player[playerName[i]].pre = playerName[i - 1];
+    Rooms[roomId].player[playerName[0]].pre = playerName[playerName.length - 1];
     saveRooms(); res.json({});
 })
 
@@ -154,8 +161,9 @@ app.ws('/room/:roomId', (socket, req) => {
         Rooms[roomId].player[req.user] = {
             x: RandInt(MAP_WIDTH / 2 - BLOCK_LENGTH * 7, MAP_WIDTH / 2 + BLOCK_LENGTH * 7),
             y: RandInt(MAP_HEIGHT / 2 - BLOCK_LENGTH * 2, MAP_HEIGHT / 2 + BLOCK_LENGTH * 2),
-            type: 'fugitive', d: { x: 0, y: 1 }, v: 0,
+            type: 'fugitive', status: PLAYER_STATUS_IN_ROOM.RUNNING, d: { x: 0, y: 1 }, v: 0,
         };
+        saveRooms();
     }
 
     var socketId = randomString(32);
@@ -179,7 +187,7 @@ app.ws('/room/:roomId', (socket, req) => {
 
 setInterval(async () => {
     var tasks = [];
-    for (var roomId in Rooms) tasks.push((async () => {
+    for (var roomId in Rooms) if (Rooms[roomId].status != ROOM_STATUS.CLOSED) tasks.push((async () => {
         var ts = [];
         for (var i in Rooms[roomId].player) {
             if (Rooms[roomId].player[i].type != 'hunter' || Users[i]) continue;
@@ -192,8 +200,9 @@ setInterval(async () => {
         await Promise.all(ts);
     })());
     await Promise.all(tasks); tasks = [];
-    for (var roomId in Rooms) tasks.push((async () => {
+    for (var roomId in Rooms) if (Rooms[roomId].status != ROOM_STATUS.CLOSED) tasks.push((async () => {
         for (var i in Rooms[roomId].player) {
+            if (Rooms[roomId].player[i].type == 'fugitive' && Rooms[roomId].player[i].status != PLAYER_STATUS_IN_ROOM.RUNNING) continue;
             var gameOver = false;
             var { d, v, x, y } = Rooms[roomId].player[i];
             function checkAllCross(player) {
@@ -255,12 +264,12 @@ setInterval(async () => {
             Rooms[roomId].player[i].y = y + d.y * dis;
             checkGameOver({ x: Rooms[roomId].player[i].x, y: Rooms[roomId].player[i].y, r: PLAYER_R });
             if (gameOver && Rooms[roomId].player[i].type == 'fugitive') {
-                // TODO: change status of player
-                Rooms[roomId].player[i] = {
-                    x: RandInt(MAP_WIDTH / 2 - BLOCK_LENGTH * 7, MAP_WIDTH / 2 + BLOCK_LENGTH * 7),
-                    y: RandInt(MAP_HEIGHT / 2 - BLOCK_LENGTH * 2, MAP_HEIGHT / 2 + BLOCK_LENGTH * 2),
-                    type: 'fugitive', d: { x: 0, y: 1 }, v: 0,
-                };
+                Rooms[roomId].player[i].status = PLAYER_STATUS_IN_ROOM.KILLED_BY_HUNTER;
+                var allDie = true;
+                for (var player in Rooms[roomId].player)
+                    if (Rooms[roomId].player[player].status != PLAYER_STATUS_IN_ROOM.KILLED_BY_HUNTER
+                        && Rooms[roomId].player[player].type == 'fugitive') allDie = false;
+                if (allDie) Rooms[roomId].status = ROOM_STATUS.CLOSED;
             }
         }
     })());
@@ -269,12 +278,24 @@ setInterval(async () => {
     for (var socketId in Sockets) {
         var { roomId, socket, user } = Sockets[socketId];
         var { status, startAt } = Rooms[roomId], roommates = [];
-        for (var name in Rooms[roomId].player)
-            if (Users[name]) roommates.push({ name, type: Rooms[roomId].player[name].type });
-        socket.send(JSON.stringify(Object.assign(
-            { now: Rooms[roomId].player[user], roomId, status, startAt, roommates },
-            getAllCanSee(Rooms[roomId], user)
-        )));
+        if (Rooms[roomId].status == ROOM_STATUS.CLOSED)
+            socket.send(JSON.stringify({ status: ROOM_STATUS.CLOSED }));
+        else {
+            for (var name in Rooms[roomId].player)
+                if (Users[name]) roommates.push({ name, type: Rooms[roomId].player[name].type });
+            if (Rooms[roomId].player[user].status == PLAYER_STATUS_IN_ROOM.RUNNING)
+                socket.send(JSON.stringify(Object.assign(
+                    { now: Rooms[roomId].player[user], roomId, status, startAt, roommates, isWatching: false },
+                    getAllCanSee(Rooms[roomId], user)
+                )));
+            else {
+                var watch = Rooms[roomId].player[user].pre;
+                socket.send(JSON.stringify(Object.assign(
+                    { now: Rooms[roomId].player[watch], roomId, status, startAt, roommates, isWatching: true },
+                    getAllCanSee(Rooms[roomId], watch)
+                )));
+            }
+        }
     }
 }, 100);
 
