@@ -18,7 +18,7 @@ async function loadRoom() {
   });
   var room = await response.json();
   if (room.error) {
-    alert(room.error);
+    window.alert(room.error);
     window.location.pathname = '';
   }
   window.isAdmin = room.isAdmin;
