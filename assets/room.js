@@ -140,8 +140,10 @@ function DrawItems() {
 }
 
 function DrawPlayer() {
+  window.borderTip = '';
   for (var user in window.player) {
     var player = window.player[user];
+    if (player.type == 'hunter') window.borderTip = 'red';
     setColor('transparent', player.type == 'fugitive' ? 'blue' : 'red');
     drawCircle(
       windowWidth() / 2 + player.x - window.now.x,
@@ -188,6 +190,27 @@ function DrawShadow() {
   }
 }
 
+function DrawBorderTip(color) {
+  setColor('transparent', color);
+  this.ctx.globalAlpha = 0.015 * (1 + Math.sin(new Date().getTime() / 100));
+  for (var i = 75; i > 0; i -= 5) {
+    var w = windowWidth(), h = windowHeight();
+    this.ctx.beginPath();
+    this.ctx.moveTo(0, 0);
+    this.ctx.lineTo(w, 0);
+    this.ctx.lineTo(w, h);
+    this.ctx.lineTo(0, h);
+    this.ctx.lineTo(0, 0);
+    this.ctx.lineTo(i, i);
+    this.ctx.lineTo(i, h - i);
+    this.ctx.lineTo(w - i, h - i);
+    this.ctx.lineTo(w - i, i);
+    this.ctx.lineTo(i, i);
+    this.ctx.fill();
+  }
+  this.ctx.globalAlpha = 1.0;
+}
+
 const MAX_SMALL_MAP = 150, MIN_SMALL_MAP = 90;
 function DrawSmallMap() {
   var mapW = window.smallMapLengthDisplay,
@@ -225,27 +248,39 @@ function UpdateTimeBoard() {
     + ` : ${String((window.gameLength - second) % 60).padStart(2, '0')}`;
   $(".timeBoard-time").html(time);
   if (window.isAdmin && window.status == ROOM_STATUS.WAITING) {
+    $(".playerList").addClass('admin');
     $(".timeBoard-money").addClass('admin');
     $(".timeBoard-money").removeClass('player');
     $(".timeBoard-money").html('开始游戏');
   }
-  else if (window.status == ROOM_STATUS.WAITING) {
-    $(".timeBoard-money").removeClass('admin');
-    $(".timeBoard-money").addClass('player');
-    $(".timeBoard-money").html('等待开始游戏');
-  }
   else {
+    $(".playerList").removeClass('admin');
     $(".timeBoard-money").removeClass('admin');
-    $(".timeBoard-money").removeClass('player');
-    $(".timeBoard-money").html(`${money} pts`);
+    if (window.status == ROOM_STATUS.WAITING) {
+      $(".timeBoard-money").addClass('player');
+      $(".timeBoard-money").html('等待开始游戏');
+    }
+    else {
+      $(".timeBoard-money").removeClass('player');
+      $(".timeBoard-money").html(`${money} pts`);
+    }
   }
 }
 
 function UpdatePlayerList() {
   for (var roommate of window.roommates) {
+    if (window.markAsHunter.includes(roommate.name)) {
+      $(`.playerName-${roommate.name}`).removeClass('fugitive');
+      $(`.playerName-${roommate.name}`).addClass('hunter');
+    }
+    else {
+      $(`.playerName-${roommate.name}`).removeClass('hunter');
+      $(`.playerName-${roommate.name}`).addClass('fugitive');
+    }
     if (window.solvedRoommates.includes(roommate.name)) continue;
     window.solvedRoommates.push(roommate.name);
-    $('.playerList').append(`<div class="playerList-player ${roommate.type}">${roommate.name}</div>`);
+    $('.playerList').append(`<div class="playerList-player ${roommate.type} playerName-${roommate.name}">${roommate.name}</div>`);
+    $(`.playerName-${roommate.name}`).click(() => { window.changePlayerType(roommate.name); });
   }
 }
 
@@ -281,6 +316,7 @@ function Draw() {
     DrawPlayer();
     DrawShadow();
     this.ctx.restore();
+    if (window.borderTip) DrawBorderTip(window.borderTip);
     DrawSmallMap();
     UpdateTimeBoard();
     UpdatePlayerList();
@@ -295,7 +331,9 @@ $(document).ready(() => {
   window.money = 0;
   window.solvedRoommates = [];
   window.roommates = [];
+  window.markAsHunter = [];
   window.isWatching = false;
+  window.borderTip = '';
   var canvas = $("#gameCanvas")[0];
   $('body').mousemove(e => window.mouse = { x: e.clientX, y: e.clientY });
   $(document).mousedown(() => window.mousedown = true);

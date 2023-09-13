@@ -102,7 +102,7 @@ app.post('/api/user/login', (req, res) => {
 });
 app.post('/api/room/create', (req, res) => {
     if (req.body.length <= 0) return;
-    if (!req.user) return res.json({ error: '清先登录。' });
+    if (!req.user) return res.json({ error: '请先登录。' });
     var roomId = randomString({ length: 4 });
     Rooms[roomId] = generateRoom(req.body.length);
     Rooms[roomId].player[req.user] = {
@@ -134,11 +134,18 @@ app.post('/api/room/load', (req, res) => {
 });
 app.post('/api/room/start', (req, res) => {
     if (!req.user) return res.json({ error: '请先登录。' });
-    var { roomId, hunter } = req.body;
+    var { roomId, hunter, markAsHunter } = req.body;
     if (!Rooms[roomId]) return res.json({ error: '房间不存在。' });
     if (Rooms[roomId].admin != req.user) return res.json({ error: '您不是房间管理员。' });
     if (Rooms[roomId].status != ROOM_STATUS.WAITING) return res.json({ error: '房间已经开始游戏。' });
+    if (!markAsHunter) markAsHunter = [];
+    var cntPlayers = 0, totalHunter = 0;
+    for (var i in Rooms[roomId].player) cntPlayers++;
+    if (markAsHunter.length == cntPlayers) markAsHunter.pop();
+    for (var i of markAsHunter)
+        if (Rooms[roomId].player[i]) Rooms[roomId].player[i].type = 'hunter', totalHunter++;
     var list = []; for (var i = 1; i <= 30; i++)list.push(i);
+    if (totalHunter > 0) list.push(0);
     if (!list.includes(hunter)) hunter = 5;
     Rooms[roomId].player = Object.assign(Rooms[roomId].player,
         generateHunters(hunter, Rooms[roomId].items));
