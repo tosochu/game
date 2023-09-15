@@ -440,7 +440,7 @@ $(document).ready(() => {
   $(document).keypress(e => { if (e.keyCode == 32) window.quickMode = true; });
   $(document).keyup(e => { if (e.keyCode == 32) window.quickMode = false; });
   this.ctx = canvas.getContext("2d");
-  window.drawInterval = setInterval(Draw, 50);
+  window.drawInterval = setInterval(Draw, 25);
   window.smallMapLength = MIN_SMALL_MAP;
   window.smallMapLengthDisplay = MIN_SMALL_MAP;
   setInterval(() => {

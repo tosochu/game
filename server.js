@@ -268,7 +268,7 @@ setInterval(async () => {
                     if (gameOver) break;
                 }
             }
-            var maxv = 0.15;
+            var maxv = 0.075;
             for (var item of Rooms[roomId].items)
                 if (item.type == 'web' && checkCircleCrossItem({ x, y, r: PLAYER_R }, item, true)) maxv /= 5;
             if (Rooms[roomId].player[i].type == 'hunter') maxv *= 1.2;
@@ -336,7 +336,7 @@ setInterval(async () => {
             }
         }
     }
-}, 100);
+}, 50);
 
 app.listen(6876, () => {
     console.log('Port :6876 is opened');
