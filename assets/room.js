@@ -25,7 +25,21 @@ async function loadRoom() {
   window.status = room.status;
   window.gameStartTime = 0;
   window.gameLength = room.length;
-  window.gameStage = GAME_STAGE.PLAYING;
+  response = await fetch("/api/prop/load", {
+    "headers": { "content-type": "application/json" },
+    "method": "GET",
+  });
+  window.Props = await response.json();
+  window.loadedImages = 0;
+  for (var prop of window.Props) {
+    prop.image = new Image();
+    prop.image.src = `/asset/icon/${prop.id}.svg`;
+    prop.image.onload = () => {
+      window.loadedImages++;
+      if (window.loadedImages == window.Props.length)
+        window.gameStage = GAME_STAGE.PLAYING;
+    };
+  }
 }
 
 $(window).resize(initWindow);
@@ -113,6 +127,27 @@ function DrawBackground() {
   );
 }
 
+function DrawProps() {
+  const PROP_LENGTH = 35;
+  this.ctx.lineWidth = 5;
+  for (var prop of window.prop) {
+    setColor('#228032', '#55d36a');
+    drawRoundRectangle(
+      windowWidth() / 2 + prop.x - PROP_LENGTH / 2 - window.now.x,
+      windowHeight() / 2 + prop.y - PROP_LENGTH / 2 - window.now.y,
+      PROP_LENGTH, PROP_LENGTH, 8
+    );
+    var i = 0; while (window.Props[i].id != prop.type) i++;
+    var { image } = window.Props[i], mul = PROP_LENGTH * 0.8 / Math.max(image.width, image.height);
+    this.ctx.drawImage(
+      image,
+      windowWidth() / 2 + prop.x - image.width * mul / 2 - window.now.x,
+      windowHeight() / 2 + prop.y - image.height * mul / 2 - window.now.y,
+      image.width * mul, image.height * mul,
+    );
+  }
+}
+
 function DrawItems() {
   setColor(`#bbb`, 'transparent');
   this.ctx.lineWidth = 5;
@@ -140,10 +175,8 @@ function DrawItems() {
 }
 
 function DrawPlayer() {
-  window.borderTip = '';
   for (var user in window.player) {
     var player = window.player[user];
-    if (player.type == 'hunter') window.borderTip = 'red';
     setColor('transparent', player.type == 'fugitive' ? 'blue' : 'red');
     drawCircle(
       windowWidth() / 2 + player.x - window.now.x,
@@ -157,7 +190,7 @@ function DrawPlayer() {
       windowHeight() / 2 + player.y - window.now.y - 25,
       '20px Consolas',
       player.type == 'hunter' ? `Hunter${user}` : user,
-    )
+    );
   };
 }
 
@@ -190,8 +223,70 @@ function DrawShadow() {
   }
 }
 
-function DrawBorderTip(color) {
-  setColor('transparent', color);
+function DrawMyProps() {
+  const PROP_LENGTH = 65;
+  this.ctx.lineWidth = 8;
+  var uniqueProp = {};
+  for (var prop of window.now.prop)
+    if (!uniqueProp[prop]) uniqueProp[prop] = 1;
+    else uniqueProp[prop]++;
+  for (var prop in uniqueProp) {
+    var x = windowWidth() / 2, y = windowHeight() - 100;
+    setColor('#228032', '#55d36a');
+    drawRoundRectangle(
+      x - PROP_LENGTH / 2, y - PROP_LENGTH / 2,
+      PROP_LENGTH, PROP_LENGTH, 10
+    );
+    var id = 0; while (window.Props[id].id != prop) id++;
+    var { image } = window.Props[id], mul = PROP_LENGTH * 0.8 / Math.max(image.width, image.height);
+    this.ctx.drawImage(
+      image,
+      x - image.width * mul / 2,
+      y - image.height * mul / 2,
+      image.width * mul,
+      image.height * mul,
+    );
+    if (uniqueProp[prop] > 1) {
+      this.ctx.save();
+      this.ctx.translate(x - 5 + PROP_LENGTH / 2, y + 5 - PROP_LENGTH / 2);
+      this.ctx.rotate(Math.PI / 4);
+      this.ctx.lineWidth = 1;
+      setColor('#000', '#fff');
+      drawCenterText(0, 0, '25px Consolas', `x${uniqueProp[prop]}`);
+      this.ctx.restore();
+    }
+    if (x - PROP_LENGTH / 2 <= window.mouse.x && window.mouse.x <= x + PROP_LENGTH / 2
+      && y - PROP_LENGTH / 2 <= window.mouse.y && window.mouse.y <= y + PROP_LENGTH / 2) {
+      const NAME_FONT = '25px Consolas', DESCRIPTION_FONT = '18px Consolas';
+      let dialogHeight, text = [''];
+      const { name, description } = window.Props[id];
+      for (var i = 0; i < description.length; i++)
+        if (getTextWidth('18px Consolas', text[text.length - 1] + description[i]) <= 180)
+          text[text.length - 1] += description[i];
+        else text.push(description[i]);
+      dialogHeight = 55 + 25 * text.length;
+      setColor('transparent', '#000000aa');
+      drawRoundRectangle(x - 100, y - dialogHeight - 10 - PROP_LENGTH / 2, 200, dialogHeight, 10);
+      setColor('transparent', '#fff');
+      drawLeftText(x - 90, y - dialogHeight - 10 + 30 - PROP_LENGTH / 2, NAME_FONT, name);
+      text.forEach((t, index) => drawLeftText(x - 90, y - dialogHeight + 50 + index * 25 - PROP_LENGTH / 2, DESCRIPTION_FONT, t));
+      $('body').css('cursor', 'pointer');
+    }
+    else $('body').css('cursor', 'auto');
+  }
+}
+
+function DrawBorderTip() {
+  var borderTip;
+  if (window.prop.length > 0 && !window.isWatching
+    && window.now.type != 'hunter') borderTip = 'blue';
+  if (!window.isWatching && window.now.type != 'hunter')
+    for (var user in window.player) {
+      var player = window.player[user];
+      if (player.type == 'hunter') borderTip = 'red';
+    };
+  if (!borderTip) return;
+  setColor('transparent', borderTip);
   this.ctx.globalAlpha = 0.015 * (1 + Math.sin(new Date().getTime() / 100));
   for (var i = 75; i > 0; i -= 5) {
     var w = windowWidth(), h = windowHeight();
@@ -268,6 +363,8 @@ function UpdateTimeBoard() {
 }
 
 function UpdatePlayerList() {
+  if (window.isWatching) $(".playerList").addClass('watching');
+  else $(".playerList").removeClass('watching');
   for (var roommate of window.roommates) {
     if (window.markAsHunter.includes(roommate.name)) {
       $(`.playerName-${roommate.name}`).removeClass('fugitive');
@@ -279,8 +376,7 @@ function UpdatePlayerList() {
     }
     if (window.solvedRoommates.includes(roommate.name)) continue;
     window.solvedRoommates.push(roommate.name);
-    $('.playerList').append(`<div class="playerList-player ${roommate.type} playerName-${roommate.name}">${roommate.name}</div>`);
-    $(`.playerName-${roommate.name}`).click(() => { window.changePlayerType(roommate.name); });
+    $('.playerList').append(`<div class="playerList-player ${roommate.type} playerName-${roommate.name}" onclick="window.changePlayerType('${roommate.name}');">${roommate.name}</div>`);
   }
 }
 
@@ -312,11 +408,13 @@ function Draw() {
     this.ctx.fillRect(0, 0, windowWidth(), windowHeight());
     DrawArrow();
     DrawBackground();
+    DrawProps();
     DrawItems();
     DrawPlayer();
     DrawShadow();
     this.ctx.restore();
-    if (window.borderTip) DrawBorderTip(window.borderTip);
+    DrawMyProps();
+    DrawBorderTip();
     DrawSmallMap();
     UpdateTimeBoard();
     UpdatePlayerList();
@@ -332,6 +430,7 @@ $(document).ready(() => {
   window.solvedRoommates = [];
   window.roommates = [];
   window.markAsHunter = [];
+  window.prop = [];
   window.isWatching = false;
   window.borderTip = '';
   var canvas = $("#gameCanvas")[0];
@@ -341,7 +440,7 @@ $(document).ready(() => {
   $(document).keypress(e => { if (e.keyCode == 32) window.quickMode = true; });
   $(document).keyup(e => { if (e.keyCode == 32) window.quickMode = false; });
   this.ctx = canvas.getContext("2d");
-  window.drawInterval = setInterval(Draw, 50);
+  window.drawInterval = setInterval(Draw, 25);
   window.smallMapLength = MIN_SMALL_MAP;
   window.smallMapLengthDisplay = MIN_SMALL_MAP;
   setInterval(() => {

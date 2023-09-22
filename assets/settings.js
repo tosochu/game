@@ -1,7 +1,7 @@
 const defaultSettings = [
   { key: 'lastUpdate', default: new Date().getTime() },
   { key: 'displayTeammates', default: true },
-  { key: 'displayAll', default: false },
+  { key: 'displayAll', default: true },
 ];
 
 function updateSettings() { }

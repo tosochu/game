@@ -29,6 +29,14 @@ $(document).ready(() => {
   });
 
   window.changePlayerType = async player => {
+    if (window.isWatching) {
+      var response = await fetch("/api/room/updateWatch", {
+        "headers": { "content-type": "application/json" },
+        "body": JSON.stringify({ roomId, watch: player }),
+        "method": "POST",
+      });
+      return;
+    }
     if (!window.isAdmin || window.status != ROOM_STATUS.WAITING) return;
     if (markAsHunter.includes(player)) markAsHunter = markAsHunter.filter(x => x != player);
     else if (solvedRoommates.length > markAsHunter.length + 1) markAsHunter.push(player);

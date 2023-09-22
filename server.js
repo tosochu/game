@@ -16,6 +16,7 @@ import {
     checkCircleCrossItem,
     checkCircleCrossRectangle,
     generateRoom, generateHunters,
+    PROP_R, Props, randomProp, generateProps,
     getAllCanSee, planPath,
 } from './lib/utils.js';
 import { dirname } from "path"
@@ -100,6 +101,7 @@ app.post('/api/user/login', (req, res) => {
     res.cookie('tosochu/game/cookie', cookie);
     res.json({});
 });
+app.get('/api/prop/load', (req, res) => { res.json(Props); });
 app.post('/api/room/create', (req, res) => {
     if (req.body.length <= 0) return;
     if (!req.user) return res.json({ error: '请先登录。' });
@@ -108,9 +110,11 @@ app.post('/api/room/create', (req, res) => {
     Rooms[roomId].player[req.user] = {
         x: RandInt(MAP_WIDTH / 2 - BLOCK_LENGTH * 7, MAP_WIDTH / 2 + BLOCK_LENGTH * 7),
         y: RandInt(MAP_HEIGHT / 2 - BLOCK_LENGTH * 2, MAP_HEIGHT / 2 + BLOCK_LENGTH * 2),
-        type: 'fugitive', status: PLAYER_STATUS_IN_ROOM.RUNNING, d: { x: 0, y: 1 }, v: 0,
+        type: 'fugitive', status: PLAYER_STATUS_IN_ROOM.RUNNING, d: { x: 0, y: 1 }, v: 0, prop: [],
     };
     Rooms[roomId].admin = req.user;
+    Rooms[roomId].prop = [];
+    console.log(`${req.user} 创建了房间 ${roomId}。`);
     saveRooms();
     res.json({ roomId: roomId });
 });
@@ -123,7 +127,7 @@ app.post('/api/room/load', (req, res) => {
         Rooms[roomId].player[req.user] = {
             x: RandInt(MAP_WIDTH / 2 - BLOCK_LENGTH * 7, MAP_WIDTH / 2 + BLOCK_LENGTH * 7),
             y: RandInt(MAP_HEIGHT / 2 - BLOCK_LENGTH * 2, MAP_HEIGHT / 2 + BLOCK_LENGTH * 2),
-            type: 'fugitive', status: PLAYER_STATUS_IN_ROOM.RUNNING, d: { x: 0, y: 1 }, v: 0,
+            type: 'fugitive', status: PLAYER_STATUS_IN_ROOM.RUNNING, d: { x: 0, y: 1 }, v: 0, prop: [],
         };
         saveRooms();
     }
@@ -144,13 +148,15 @@ app.post('/api/room/start', (req, res) => {
     if (markAsHunter.length == cntPlayers) markAsHunter.pop();
     for (var i of markAsHunter)
         if (Rooms[roomId].player[i]) Rooms[roomId].player[i].type = 'hunter', totalHunter++;
-    var list = []; for (var i = 1; i <= 30; i++)list.push(i);
+    var list = []; for (var i = 1; i <= 10; i++)list.push(i);
     if (totalHunter > 0) list.push(0);
     if (!list.includes(hunter)) hunter = 5;
     Rooms[roomId].player = Object.assign(Rooms[roomId].player,
         generateHunters(hunter, Rooms[roomId].items));
     Rooms[roomId].startAt = new Date().getTime();
     Rooms[roomId].status = ROOM_STATUS.PLAYING;
+    console.log(`房间 ${roomId} 开始了游戏。`);
+    Rooms[roomId].prop = generateProps(30);
     var playerName = [];
     for (var player in Rooms[roomId].player)
         if (Rooms[roomId].player[player].type == 'fugitive') playerName.push(player);
@@ -158,7 +164,20 @@ app.post('/api/room/start', (req, res) => {
         Rooms[roomId].player[playerName[i]].pre = playerName[i - 1];
     Rooms[roomId].player[playerName[0]].pre = playerName[playerName.length - 1];
     saveRooms(); res.json({});
-})
+});
+app.post('/api/room/updateWatch', (req, res) => {
+    if (!req.user) return res.json({ error: '请先登录。' });
+    var { roomId, watch } = req.body;
+    if (!Rooms[roomId]) return res.json({ error: '房间不存在。' });
+    if (Rooms[roomId].status != ROOM_STATUS.PLAYING) return res.json({ error: '房间还没有开始游戏或者已经关闭。' });
+    if (!Rooms[roomId].player[req.user]) return res.json({ error: '您不在房间中。' });
+    if (!Rooms[roomId].player[watch]) return res.json({ error: '目标不在房间中。' });
+    if (Rooms[roomId].player[req.user].type != 'fugitive') return res.json({ error: '您不是逃走者。' });
+    if (Rooms[roomId].player[req.user].status != PLAYER_STATUS_IN_ROOM.KILLED_BY_HUNTER) return res.json({ error: '您还没死。' });
+    if (Rooms[roomId].player[watch].type != 'fugitive') return res.json({ error: '目标不是逃走者。' });
+    Rooms[roomId].player[req.user].watching = watch;
+    saveRooms(); res.json({});
+});
 
 app.ws('/room/:roomId', (socket, req) => {
     if (!req.user) return socket.close();
@@ -169,7 +188,7 @@ app.ws('/room/:roomId', (socket, req) => {
         Rooms[roomId].player[req.user] = {
             x: RandInt(MAP_WIDTH / 2 - BLOCK_LENGTH * 7, MAP_WIDTH / 2 + BLOCK_LENGTH * 7),
             y: RandInt(MAP_HEIGHT / 2 - BLOCK_LENGTH * 2, MAP_HEIGHT / 2 + BLOCK_LENGTH * 2),
-            type: 'fugitive', status: PLAYER_STATUS_IN_ROOM.RUNNING, d: { x: 0, y: 1 }, v: 0,
+            type: 'fugitive', status: PLAYER_STATUS_IN_ROOM.RUNNING, d: { x: 0, y: 1 }, v: 0, prop: [],
         };
         saveRooms();
     }
@@ -249,7 +268,7 @@ setInterval(async () => {
                     if (gameOver) break;
                 }
             }
-            var maxv = 0.15;
+            var maxv = 0.075;
             for (var item of Rooms[roomId].items)
                 if (item.type == 'web' && checkCircleCrossItem({ x, y, r: PLAYER_R }, item, true)) maxv /= 5;
             if (Rooms[roomId].player[i].type == 'hunter') maxv *= 1.2;
@@ -266,19 +285,31 @@ setInterval(async () => {
             while (dis <= v * maxv) {
                 dis += SmallStep;
                 if (checkAllCross({ x, y: y + d.y * dis, r: PLAYER_R })) { dis -= SmallStep; break; }
-                checkGameOver({ x: x + d.x * dis, y, r: PLAYER_R });
+                checkGameOver({ x, y: y + d.y * dis, r: PLAYER_R });
             }
             if (dis > 0) Rooms[roomId].player[i].lastOp = new Date().getTime();
-            Rooms[roomId].player[i].y = y + d.y * dis;
-            checkGameOver({ x: Rooms[roomId].player[i].x, y: Rooms[roomId].player[i].y, r: PLAYER_R });
+            y = Rooms[roomId].player[i].y = y + d.y * dis;
+            checkGameOver({ x, y, r: PLAYER_R });
             if (gameOver && Rooms[roomId].player[i].type == 'fugitive') {
                 Rooms[roomId].player[i].status = PLAYER_STATUS_IN_ROOM.KILLED_BY_HUNTER;
+                Rooms[roomId].player[i].watching = Rooms[roomId].player[i].pre;
                 var allDie = true;
                 for (var player in Rooms[roomId].player)
                     if (Rooms[roomId].player[player].status != PLAYER_STATUS_IN_ROOM.KILLED_BY_HUNTER
                         && Rooms[roomId].player[player].type == 'fugitive') allDie = false;
-                if (allDie) Rooms[roomId].status = ROOM_STATUS.CLOSED;
+                if (allDie) {
+                    Rooms[roomId].status = ROOM_STATUS.CLOSED;
+                    console.log(`房间 ${roomId} 结束了游戏。`);
+                }
             }
+            var { x, y } = Rooms[roomId].player[i];
+            if (Rooms[roomId].player[i].type == 'fugitive')
+                Rooms[roomId].prop.forEach((prop, index) => {
+                    if (checkCircleCrossCircle({ x, y, r: PLAYER_R }, { x1: prop.x, y1: prop.y, r1: PROP_R })) {
+                        Rooms[roomId].player[i].prop.push(prop.type);
+                        Rooms[roomId].prop.splice(index, 1);
+                    }
+                });
         }
     })());
     await Promise.all(tasks);
@@ -297,7 +328,7 @@ setInterval(async () => {
                     getAllCanSee(Rooms[roomId], user)
                 )));
             else {
-                var watch = Rooms[roomId].player[user].pre;
+                var watch = Rooms[roomId].player[user].watching;
                 socket.send(JSON.stringify(Object.assign(
                     { now: Rooms[roomId].player[watch], roomId, status, startAt, roommates, isWatching: true },
                     getAllCanSee(Rooms[roomId], watch)
@@ -305,7 +336,7 @@ setInterval(async () => {
             }
         }
     }
-}, 100);
+}, 50);
 
 app.listen(6876, () => {
     console.log('Port :6876 is opened');
