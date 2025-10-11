@@ -264,6 +264,16 @@ app.ws('/room/:roomId', (socket, req) => {
                 // console.info(d)
                 Rooms[roomId].items.push(d);
             }
+            else if (pid === 'vweb') {
+                Rooms[roomId].player[req.user].vweb_time = Date.now() + 5000
+                // const d = {
+                //     type: 'web', r: RandInt(50, 200),
+                //     owner: req.user,
+                //     x: Rooms[roomId].player[req.user].x, y: Rooms[roomId].player[req.user].y,
+                // }
+                // console.info(d)
+                // Rooms[roomId].items.push(d);
+            }
             saveRooms();
             return;
         }
@@ -392,6 +402,17 @@ setInterval(async () => {
                         // console.info(id, Rooms[roomId].player[i].prop, { x, y, r: PLAYER_R }, { x1: prop.x, y1: prop.y, r1: PROP_R })
                     }
                 }
+            if ((Rooms[roomId].player[i].vweb_time || 0) > Date.now()) {
+                const ccc = Rooms[roomId].player[i].vweb_cnt = ((Rooms[roomId].player[i].vweb_cnt || 0) + 1) % 5
+                if (ccc === 1) {
+                    const d = {
+                        type: 'web', r: RandInt(50, 60),
+                        owner: i,
+                        x: Rooms[roomId].player[i].x, y: Rooms[roomId].player[i].y,
+                    }
+                    Rooms[roomId].items.push(d)
+                }
+            }
         }
     })());
     await Promise.all(tasks);

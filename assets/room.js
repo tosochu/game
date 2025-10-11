@@ -486,6 +486,7 @@ $(document).ready(() => {
       const PropMapping = {
         'i': 'ice',
         'w': 'web',
+        'v': 'vweb',
       }
       const pid = PropMapping[e.key.toLowerCase()];
       if (!pid || !window.now.prop.includes(pid)) return;
