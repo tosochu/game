@@ -22,7 +22,7 @@ async function loadRoom() {
     window.location.pathname = '';
   }
   window.isAdmin = room.isAdmin;
-  window.status = room.status;
+  window.room_status = room.status;
   window.gameStartTime = 0;
   window.gameLength = room.length;
   response = await fetch("/api/prop/load", {
@@ -227,11 +227,16 @@ function DrawMyProps() {
   const PROP_LENGTH = 65;
   this.ctx.lineWidth = 8;
   var uniqueProp = {};
-  for (var prop of window.now.prop)
-    if (!uniqueProp[prop]) uniqueProp[prop] = 1;
+  let cntunique = 0
+  for (var prop of (window.now.prop ? window.now.prop : []))
+    if (!uniqueProp[prop]) uniqueProp[prop] = 1, cntunique++
     else uniqueProp[prop]++;
+  let pos = windowWidth() / 2 - (cntunique - 1) / 2 * 120
+  let noHover = true
   for (var prop in uniqueProp) {
-    var x = windowWidth() / 2, y = windowHeight() - 100;
+    // pos = windowWidth() / 2
+    var x = pos, y = windowHeight() - 100;
+    pos += 120
     setColor('#228032', '#55d36a');
     drawRoundRectangle(
       x - PROP_LENGTH / 2, y - PROP_LENGTH / 2,
@@ -255,15 +260,18 @@ function DrawMyProps() {
       drawCenterText(0, 0, '25px Consolas', `x${uniqueProp[prop]}`);
       this.ctx.restore();
     }
+
+    // show tooltip on hover (no click-to-use)
     if (x - PROP_LENGTH / 2 <= window.mouse.x && window.mouse.x <= x + PROP_LENGTH / 2
       && y - PROP_LENGTH / 2 <= window.mouse.y && window.mouse.y <= y + PROP_LENGTH / 2) {
       const NAME_FONT = '25px Consolas', DESCRIPTION_FONT = '18px Consolas';
       let dialogHeight, text = [''];
-      const { name, description } = window.Props[id];
+      const { name, description, key } = window.Props[id];
       for (var i = 0; i < description.length; i++)
         if (getTextWidth('18px Consolas', text[text.length - 1] + description[i]) <= 180)
           text[text.length - 1] += description[i];
         else text.push(description[i]);
+      text.push(`按下 ${key.toUpperCase()} 键使用`)
       dialogHeight = 55 + 25 * text.length;
       setColor('transparent', '#000000aa');
       drawRoundRectangle(x - 100, y - dialogHeight - 10 - PROP_LENGTH / 2, 200, dialogHeight, 10);
@@ -271,9 +279,10 @@ function DrawMyProps() {
       drawLeftText(x - 90, y - dialogHeight - 10 + 30 - PROP_LENGTH / 2, NAME_FONT, name);
       text.forEach((t, index) => drawLeftText(x - 90, y - dialogHeight + 50 + index * 25 - PROP_LENGTH / 2, DESCRIPTION_FONT, t));
       $('body').css('cursor', 'pointer');
+      noHover = false;
     }
-    else $('body').css('cursor', 'auto');
   }
+  if (noHover) $('body').css('cursor', 'auto');
 }
 
 function DrawBorderTip() {
@@ -336,13 +345,13 @@ function DrawSmallMap() {
 }
 
 function UpdateTimeBoard() {
-  if (window.status == ROOM_STATUS.PLAYING) $(".timeBoard-header").html('游戏剩余时间');
-  var nowTime = new Date().getTime(); if (window.status == ROOM_STATUS.WAITING) nowTime = 0;
+  if (window.room_status == ROOM_STATUS.PLAYING) $(".timeBoard-header").html('游戏剩余时间');
+  var nowTime = new Date().getTime(); if (window.room_status == ROOM_STATUS.WAITING) nowTime = 0;
   var second = ((nowTime - window.gameStartTime) / 1000).toFixed(0);
   var time = `${String(Math.floor((window.gameLength - second) / 60)).padStart(2, '0')}`
     + ` : ${String((window.gameLength - second) % 60).padStart(2, '0')}`;
   $(".timeBoard-time").html(time);
-  if (window.isAdmin && window.status == ROOM_STATUS.WAITING) {
+  if (window.isAdmin && window.room_status == ROOM_STATUS.WAITING) {
     $(".playerList").addClass('admin');
     $(".timeBoard-money").addClass('admin');
     $(".timeBoard-money").removeClass('player');
@@ -351,7 +360,7 @@ function UpdateTimeBoard() {
   else {
     $(".playerList").removeClass('admin');
     $(".timeBoard-money").removeClass('admin');
-    if (window.status == ROOM_STATUS.WAITING) {
+    if (window.room_status == ROOM_STATUS.WAITING) {
       $(".timeBoard-money").addClass('player');
       $(".timeBoard-money").html('等待开始游戏');
     }
@@ -363,20 +372,49 @@ function UpdateTimeBoard() {
 }
 
 function UpdatePlayerList() {
-  if (window.isWatching) $(".playerList").addClass('watching');
-  else $(".playerList").removeClass('watching');
-  for (var roommate of window.roommates) {
-    if (window.markAsHunter.includes(roommate.name)) {
-      $(`.playerName-${roommate.name}`).removeClass('fugitive');
-      $(`.playerName-${roommate.name}`).addClass('hunter');
+  const canClick = window.isWatching || (window.isAdmin && window.room_status === ROOM_STATUS.WAITING)
+  // ensure container exists
+  if ($('.playerList').length === 0) {
+    $('body').append('<div class="playerList"></div>');
+  }
+  const $list = $('.playerList');
+
+  // build a stable snapshot of the logical player list (order matters)
+  const snapshotArr = [];
+  if (Array.isArray(window.roommates)) {
+    for (const roommate of window.roommates) {
+      const name = roommate.name;
+      const isMarkedHunter = Array.isArray(window.markAsHunter) && window.markAsHunter.includes(name);
+      snapshotArr.push({ name, type: (isMarkedHunter || roommate.type === 'hunter' ? 'hunter' : 'fugitive') });
     }
-    else {
-      $(`.playerName-${roommate.name}`).removeClass('hunter');
-      $(`.playerName-${roommate.name}`).addClass('fugitive');
+  }
+  const snapshot = JSON.stringify({ list: snapshotArr, canClick });
+
+  // if unchanged, skip DOM update
+  if (window._playerListSnapshot === snapshot) return;
+  window._playerListSnapshot = snapshot;
+
+  // rebuild list (clear then append)
+  $list.html('');
+
+  for (const entry of snapshotArr) {
+    const type = entry.type;
+    const displayName = entry.name
+    const name = type === 'hunter' ? entry.name.replace(/^Hunter/, '') : entry.name;
+    // build element
+    const $entry = $(`<div class="playerList-player ${type} playerName-${name}"></div>`);
+    $entry.text(displayName);
+
+    // admin can click to toggle (if window.changePlayerType exists)
+    if (canClick) {
+      $entry.addClass('canclick');
+      $entry.css('cursor', 'pointer');
+      $entry.on('click', () => {
+        window.handleClickPlayer(name);
+      });
     }
-    if (window.solvedRoommates.includes(roommate.name)) continue;
-    window.solvedRoommates.push(roommate.name);
-    $('.playerList').append(`<div class="playerList-player ${roommate.type} playerName-${roommate.name}" onclick="window.changePlayerType('${roommate.name}');">${roommate.name}</div>`);
+
+    $list.append($entry);
   }
 }
 
@@ -384,7 +422,7 @@ function Draw() {
   this.ctx.clearRect(0, 0, windowWidth(), windowHeight());
   setColor('transparent', '#000');
   this.ctx.fillRect(0, 0, windowWidth(), windowHeight());
-  if (window.status == ROOM_STATUS.CLOSED) {
+  if (window.room_status == ROOM_STATUS.CLOSED) {
     setTimeout(() => { window.location.pathname = '/' }, 3000);
     clearInterval(window.drawInterval);
   }
@@ -427,7 +465,6 @@ $(document).ready(() => {
   initSettings();
   window.gameStage = GAME_STAGE.LOADING_ROOM;
   window.money = 0;
-  window.solvedRoommates = [];
   window.roommates = [];
   window.markAsHunter = [];
   window.prop = [];
@@ -437,8 +474,29 @@ $(document).ready(() => {
   $('body').mousemove(e => window.mouse = { x: e.clientX, y: e.clientY });
   $(document).mousedown(() => window.mousedown = true);
   $(document).mouseup(() => window.mousedown = false);
+  // record last click time (ms). consider a click valid if within 300ms window
+  window.lastClickTime = 0;
+  $(document).click(() => { window.lastClickTime = Date.now(); });
   $(document).keypress(e => { if (e.keyCode == 32) window.quickMode = true; });
   $(document).keyup(e => { if (e.keyCode == 32) window.quickMode = false; });
+  // Use prop by pressing 'I'. Server-side still validates.
+  $(document).keydown(e => {
+    try {
+      if (!e.key) return;
+      const PropMapping = {
+        'i': 'ice',
+        'w': 'web',
+      }
+      const pid = PropMapping[e.key.toLowerCase()];
+      if (!pid || !window.now.prop.includes(pid)) return;
+      if (typeof socket !== 'undefined' && socket && socket.readyState === 1) {
+        socket.send(JSON.stringify({ action: 'useProp', prop: pid }));
+        // remove locally to avoid double-use (server will also validate)
+        const idx = window.now.prop.indexOf(pid);
+        if (idx !== -1) window.now.prop.splice(idx, 1);
+      }
+    } catch (ex) { /* ignore */ }
+  });
   this.ctx = canvas.getContext("2d");
   window.drawInterval = setInterval(Draw, 25);
   window.smallMapLength = MIN_SMALL_MAP;

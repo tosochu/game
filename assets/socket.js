@@ -22,11 +22,11 @@ function getMessage(message) {
     window.player = messages.player;
     window.items = messages.items;
     window.prop = messages.prop;
-    window.status = messages.status;
+    window.room_status = messages.status;
     window.gameStartTime = messages.startAt || 0;
     window.roommates = messages.roommates;
     window.isWatching = messages.isWatching;
-    if (window.status == 2) {
+    if (window.room_status == 2) {
       let tmp = [];
       for (var roommate of window.roommates)
         if (roommate.type == 'hunter') tmp.push(roommate.name);

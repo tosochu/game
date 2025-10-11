@@ -40,3 +40,64 @@ canvas {
     padding: 3px !important;
     border-radius: 5px;
 }
+
+.playerList {
+    position: fixed;
+    left: 10px;
+    bottom: 10px;
+    width: 200px;
+    max-height: 25vh;
+    overflow-y: auto;
+    background: #222222cc;
+    color: #fff;
+    border-radius: 8px;
+    padding: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    font-family: Consolas, monospace;
+    font-size: 14px;
+    z-index: 1000;
+}
+
+.playerList.watching {
+    opacity: 0.9;
+}
+
+.playerList-player {
+    padding: 6px 8px;
+    margin: 6px 0;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: background-color 0.12s, transform 0.08s;
+    user-select: none;
+}
+
+/* role colors */
+.playerList-player.fugitive {
+    background: linear-gradient(90deg,rgb(84, 135, 187),rgb(48, 113, 135));
+    border: 1px solid rgba(255,255,255,0.03);
+}
+.playerList-player.hunter {
+    background: linear-gradient(90deg,#642,#421);
+    border: 1px solid rgba(255,255,255,0.03);
+}
+
+/* admin visual hint */
+.playerList-player.canclick {
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.02) inset;
+}
+.playerList-player.canclick:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.08);
+}
+
+/* ensure long names wrap nicely */
+.playerList-player {
+    word-break: break-word;
+}
+
+/* small responsive tweak */
+@media (max-width: 600px) {
+    .playerList { width: 160px; font-size: 13px; padding: 6px; }
+}

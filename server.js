@@ -9,7 +9,7 @@ import { ensureDirSync } from 'fs-extra';
 import randomString from 'random-string';
 import {
     hashPassword,
-    ROOM_STATUS, PLAYER_STATUS, PLAYER_STATUS_IN_ROOM,
+    ROOM_STATUS, PLAYER_STATUS, PLAYER_STATUS_IN_ROOM, HUNTER_STATUS,
     RandInt, PLAYER_R,
     MAP_WIDTH, MAP_HEIGHT, BLOCK_LENGTH,
     checkCircleCrossCircle,
@@ -21,6 +21,7 @@ import {
 } from './lib/utils.js';
 import { dirname } from "path"
 import { fileURLToPath } from "url"
+import { DEFAULT_PROP_CNT } from './lib/prop.js';
 
 const app = express();
 app.use(cors());
@@ -50,12 +51,12 @@ app.all('*', (req, res, next) => {
     res.set('Access-Control-Allow-Methods', 'GET');
     res.set('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type');
     if ('OPTIONS' == req.method) return res.send(200);
-    if (req.cookies['tosochu/game/name'] && req.cookies['tosochu/game/cookie']
-        && Users[req.cookies['tosochu/game/name']]
-        && Users[req.cookies['tosochu/game/name']].cookie == req.cookies['tosochu/game/cookie'])
-        req.user = req.cookies['tosochu/game/name'];
-    else res.cookie('tosochu/game/name', ''),
-        res.cookie('tosochu/game/cookie', '');
+    if (req.cookies['tosochu_game_name'] && req.cookies['tosochu_game_cookie']
+        && Users[req.cookies['tosochu_game_name']]
+        && Users[req.cookies['tosochu_game_name']].cookie == req.cookies['tosochu_game_cookie'])
+        req.user = req.cookies['tosochu_game_name'];
+    else res.cookie('tosochu_game_name', ''),
+        res.cookie('tosochu_game_cookie', '');
     next();
 });
 app.use('/asset', express.static(path.join(__dirname, 'assets')));
@@ -97,15 +98,19 @@ app.post('/api/user/login', (req, res) => {
         return res.json({ error: '密码错误。' });
     var cookie = randomString({ length: 64 });
     Users[username].cookie = cookie; saveUsers();
-    res.cookie('tosochu/game/name', username);
-    res.cookie('tosochu/game/cookie', cookie);
+    res.cookie('tosochu_game_name', username);
+    res.cookie('tosochu_game_cookie', cookie);
     res.json({});
 });
 app.get('/api/prop/load', (req, res) => { res.json(Props); });
 app.post('/api/room/create', (req, res) => {
     if (req.body.length <= 0) return;
     if (!req.user) return res.json({ error: '请先登录。' });
-    var roomId = randomString({ length: 4 });
+    var roomId = randomString({
+        length: 4,
+        numeric: true,
+        letters: false,
+    });
     Rooms[roomId] = generateRoom(req.body.length);
     Rooms[roomId].player[req.user] = {
         x: RandInt(MAP_WIDTH / 2 - BLOCK_LENGTH * 7, MAP_WIDTH / 2 + BLOCK_LENGTH * 7),
@@ -113,6 +118,7 @@ app.post('/api/room/create', (req, res) => {
         type: 'fugitive', status: PLAYER_STATUS_IN_ROOM.RUNNING, d: { x: 0, y: 1 }, v: 0, prop: [],
     };
     Rooms[roomId].admin = req.user;
+    Rooms[roomId].lastActive = Date.now();
     Rooms[roomId].prop = [];
     console.log(`${req.user} 创建了房间 ${roomId}。`);
     saveRooms();
@@ -147,7 +153,13 @@ app.post('/api/room/start', (req, res) => {
     for (var i in Rooms[roomId].player) cntPlayers++;
     if (markAsHunter.length == cntPlayers) markAsHunter.pop();
     for (var i of markAsHunter)
-        if (Rooms[roomId].player[i]) Rooms[roomId].player[i].type = 'hunter', totalHunter++;
+        if (Rooms[roomId].player[i]) {
+            Rooms[roomId].player[i].type = 'hunter', totalHunter++;
+            const x = RandInt(MAP_WIDTH / 2 - BLOCK_LENGTH * 7, MAP_WIDTH / 2 + BLOCK_LENGTH * 7)
+            const y = RandInt(MAP_HEIGHT / 2 - BLOCK_LENGTH * 2, MAP_HEIGHT / 2 + BLOCK_LENGTH * 2)
+            Rooms[roomId].player[i].x = x
+            Rooms[roomId].player[i].y = y
+        }
     var list = []; for (var i = 1; i <= 10; i++)list.push(i);
     if (totalHunter > 0) list.push(0);
     if (!list.includes(hunter)) hunter = 5;
@@ -155,8 +167,8 @@ app.post('/api/room/start', (req, res) => {
         generateHunters(hunter, Rooms[roomId].items));
     Rooms[roomId].startAt = new Date().getTime();
     Rooms[roomId].status = ROOM_STATUS.PLAYING;
-    console.log(`房间 ${roomId} 开始了游戏。`);
-    Rooms[roomId].prop = generateProps(30);
+    console.log(`房间 ${roomId} 开始了游戏。${hunter} 个 Hunter。`);
+    Rooms[roomId].prop = generateProps(DEFAULT_PROP_CNT);
     var playerName = [];
     for (var player in Rooms[roomId].player)
         if (Rooms[roomId].player[player].type == 'fugitive') playerName.push(player);
@@ -164,6 +176,24 @@ app.post('/api/room/start', (req, res) => {
         Rooms[roomId].player[playerName[i]].pre = playerName[i - 1];
     Rooms[roomId].player[playerName[0]].pre = playerName[playerName.length - 1];
     saveRooms(); res.json({});
+});
+// Add: return a list of rooms with basic info
+app.get('/api/room/list', (req, res) => {
+    const list = [];
+    for (const id in Rooms) {
+        const r = Rooms[id];
+        if (!r) continue;
+        let cnt = {};
+        for (const p in r.player) cnt[r.player[p].type] = (cnt[r.player[p].type] || 0) + 1
+        list.push({
+            roomId: id,
+            status: r.status,
+            length: r.length,
+            admin: r.admin,
+            cnt,
+        });
+    }
+    res.json(list);
 });
 app.post('/api/room/updateWatch', (req, res) => {
     if (!req.user) return res.json({ error: '请先登录。' });
@@ -174,7 +204,7 @@ app.post('/api/room/updateWatch', (req, res) => {
     if (!Rooms[roomId].player[watch]) return res.json({ error: '目标不在房间中。' });
     if (Rooms[roomId].player[req.user].type != 'fugitive') return res.json({ error: '您不是逃走者。' });
     if (Rooms[roomId].player[req.user].status != PLAYER_STATUS_IN_ROOM.KILLED_BY_HUNTER) return res.json({ error: '您还没死。' });
-    if (Rooms[roomId].player[watch].type != 'fugitive') return res.json({ error: '目标不是逃走者。' });
+    // if (Rooms[roomId].player[watch].type != 'fugitive') return res.json({ error: '目标不是逃走者。' });
     Rooms[roomId].player[req.user].watching = watch;
     saveRooms(); res.json({});
 });
@@ -199,10 +229,54 @@ app.ws('/room/:roomId', (socket, req) => {
     socket.on('message', body => {
         try { body = JSON.parse(body); }
         catch (e) { }
+        Rooms[roomId].lastActive = Date.now();
+        // support prop usage via websocket: { action: 'useProp', prop: 'ice' }
+        if (body && body.action === 'useProp' && body.prop) {
+            const pid = body.prop;
+            const pl = Rooms[roomId].player[req.user];
+            if (!pl || !pl.prop || pl.prop.indexOf(pid) === -1) return;
+            // remove one prop from player
+            const idx = pl.prop.indexOf(pid);
+            pl.prop.splice(idx, 1);
+            if (pid === 'ice') {
+                // find nearest hunter
+                let nearest = null, nd = Infinity;
+                for (const name in Rooms[roomId].player) {
+                    const p = Rooms[roomId].player[name];
+                    if (p.type !== 'hunter') continue;
+                    const d = Math.hypot(pl.x - p.x, pl.y - p.y);
+                    if (d < nd) { nd = d; nearest = p; }
+                }
+                if (nearest) {
+                    nearest.data = nearest.data || {};
+                    nearest.data.status = HUNTER_STATUS.FROZEN;
+                    nearest.data.frozenUntil = Math.max(nearest.data.frozenUntil || 0, Date.now()) + 5000;
+                    nearest.v = 0;
+                    nearest.d = { x: 0, y: 0 };
+                }
+            }
+            else if (pid === 'web') {
+                const d = {
+                    type: 'web', r: RandInt(50, 200),
+                    owner: req.user,
+                    x: Rooms[roomId].player[req.user].x, y: Rooms[roomId].player[req.user].y,
+                }
+                // console.info(d)
+                Rooms[roomId].items.push(d);
+            }
+            saveRooms();
+            return;
+        }
+
+        // normal movement update: ignore updates if the player is a frozen hunter
         if (body.speed > 120) body.speed = 120;
-        var { x, y } = body.direction;
-        if (Math.hypot(x, y) > 0)
-            [x, y] = [x / Math.hypot(x, y), y / Math.hypot(x, y)];
+        var { x, y } = body.direction || { x: 0, y: 0 };
+        if (Math.hypot(x, y) > 0) [x, y] = [x / Math.hypot(x, y), y / Math.hypot(x, y)];
+        const currentPlayer = Rooms[roomId].player[req.user];
+        if (currentPlayer && currentPlayer.type === 'hunter' && currentPlayer.data && currentPlayer.data.status === HUNTER_STATUS.FROZEN && currentPlayer.data.frozenUntil && Date.now() < currentPlayer.data.frozenUntil) {
+            // ignore movement updates while frozen
+            return;
+        }
         Rooms[roomId].player[req.user].d = { x, y };
         Rooms[roomId].player[req.user].v = body.speed;
     });
@@ -221,13 +295,18 @@ setInterval(async () => {
             var { x, y } = Rooms[roomId].player[i];
             ts.push((async () => {
                 Rooms[roomId].player[i] = Object.assign(Rooms[roomId].player[i],
-                    planPath(x, y, Rooms[roomId].player[i].data, getAllCanSee(Rooms[roomId], i)));
+                    planPath(x, y, Rooms[roomId].player[i].data, Rooms[roomId].player[i].lastOp, getAllCanSee(Rooms[roomId], i)));
             })());
         }
         await Promise.all(ts);
     })());
     await Promise.all(tasks); tasks = [];
     for (var roomId in Rooms) if (Rooms[roomId].status != ROOM_STATUS.CLOSED) tasks.push((async () => {
+        if (Rooms[roomId].lastActive < Date.now() - 30000) {
+            Rooms[roomId].status = ROOM_STATUS.CLOSED;
+            console.log(`房间 ${roomId} 因为不活跃而结束了游戏。`);
+            return;
+        }
         for (var i in Rooms[roomId].player) {
             if (Rooms[roomId].player[i].type == 'fugitive' && Rooms[roomId].player[i].status != PLAYER_STATUS_IN_ROOM.RUNNING) continue;
             var gameOver = false;
@@ -270,7 +349,8 @@ setInterval(async () => {
             }
             var maxv = 0.075;
             for (var item of Rooms[roomId].items)
-                if (item.type == 'web' && checkCircleCrossItem({ x, y, r: PLAYER_R }, item, true)) maxv /= 5;
+                if (item.type == 'web' && item.owner !== i && checkCircleCrossItem({ x, y, r: PLAYER_R }, item, true)) maxv /= 5;
+            maxv = Math.max(maxv, 0.075 / 12);
             if (Rooms[roomId].player[i].type == 'hunter') maxv *= 1.2;
             const SmallStep = 3;
             var dis = 0;
@@ -304,12 +384,14 @@ setInterval(async () => {
             }
             var { x, y } = Rooms[roomId].player[i];
             if (Rooms[roomId].player[i].type == 'fugitive')
-                Rooms[roomId].prop.forEach((prop, index) => {
+                for (let id = 0; id < Rooms[roomId].prop.length; id++) {
+                    const prop = Rooms[roomId].prop[id]
                     if (checkCircleCrossCircle({ x, y, r: PLAYER_R }, { x1: prop.x, y1: prop.y, r1: PROP_R })) {
                         Rooms[roomId].player[i].prop.push(prop.type);
-                        Rooms[roomId].prop.splice(index, 1);
+                        Rooms[roomId].prop.splice(id, 1);
+                        // console.info(id, Rooms[roomId].player[i].prop, { x, y, r: PLAYER_R }, { x1: prop.x, y1: prop.y, r1: PROP_R })
                     }
-                });
+                }
         }
     })());
     await Promise.all(tasks);
@@ -320,8 +402,10 @@ setInterval(async () => {
         if (Rooms[roomId].status == ROOM_STATUS.CLOSED)
             socket.send(JSON.stringify({ status: ROOM_STATUS.CLOSED }));
         else {
-            for (var name in Rooms[roomId].player)
-                if (Users[name]) roommates.push({ name, type: Rooms[roomId].player[name].type });
+            for (var name in Rooms[roomId].player) {
+                const type = Rooms[roomId].player[name].type
+                roommates.push({ name: (type === 'hunter' ? `Hunter${name}` : name), type });
+            }
             if (Rooms[roomId].player[user].status == PLAYER_STATUS_IN_ROOM.RUNNING)
                 socket.send(JSON.stringify(Object.assign(
                     { now: Rooms[roomId].player[user], roomId, status, startAt, roommates, isWatching: false },

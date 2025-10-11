@@ -9,7 +9,18 @@
 <body class="page-createRoom">
   游戏时长：<input type="number" placeholder="一个数字，以分钟为单位" class="game-time">
   <button class="create">Create</button>
-  <p>请自行检查电脑时间，若电脑时间不正确造成的一起后果自负！</p>
+  <p>请自行检查电脑时间是否准确！</p>
+
+  <!-- Add: room list and refresh control -->
+  <div style="margin-top:1em;">
+    <button type="button" class="room-list-refresh">刷新房间列表</button>
+    <div class="room-list" style="margin-top:0.5em;"></div>
+  </div>
+
+  <p>
+    <a href="/login">Login</a>
+    <a href="/register">Register</a>
+  </p>
 </body>
 
 </html>
