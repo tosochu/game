@@ -238,6 +238,7 @@ app.ws('/room/:roomId', (socket, req) => {
             if (!pl || !pl.prop || pl.prop.indexOf(pid) === -1) return;
             const idx = pl.prop.indexOf(pid);
             pl.prop.splice(idx, 1);
+            pl.score += 0.8;
             if (pid === 'ice') {
                 let nearest = null, nd = Infinity;
                 for (const name in Rooms[roomId].player) {
@@ -396,6 +397,7 @@ setInterval(async () => {
                     if (checkCircleCrossCircle({ x, y, r: PLAYER_R }, { x1: prop.x, y1: prop.y, r1: PROP_R })) {
                         Rooms[roomId].player[i].prop.push(prop.type);
                         Rooms[roomId].prop.splice(id, 1);
+                        Rooms[roomId].player[i].score += 0.8;
                     }
                 }
                 for (const hunId in Rooms[roomId].player) {
@@ -403,7 +405,7 @@ setInterval(async () => {
                     const { x: x0, y: y0 } = Rooms[roomId].player[hunId];
                     const dis = Math.hypot(x0 - x, y0 - y)
                     if (dis > BLOCK_LENGTH * 1.5) continue
-                    Rooms[roomId].player[i].score += dis / (BLOCK_LENGTH * 1.5) / 20
+                    Rooms[roomId].player[i].score += dis / (BLOCK_LENGTH * 1.5) / 15
                 }
             }
             if ((Rooms[roomId].player[i].vweb_time || 0) > Date.now()) {
