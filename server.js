@@ -314,6 +314,7 @@ setInterval(async () => {
     for (var roomId in Rooms) if (Rooms[roomId].status != ROOM_STATUS.CLOSED) tasks.push((async () => {
         if (Rooms[roomId].lastActive < Date.now() - 30000) {
             Rooms[roomId].status = ROOM_STATUS.CLOSED;
+            Rooms[roomId].endtime = Date.now();
             console.log(`房间 ${roomId} 因为不活跃而结束了游戏。`);
             return;
         }
@@ -390,6 +391,7 @@ setInterval(async () => {
                 if (allDie) {
                     Rooms[roomId].status = ROOM_STATUS.CLOSED;
                     console.log(`房间 ${roomId} 结束了游戏。`);
+                    Rooms[roomId].endtime = Date.now();
                 }
             }
             var { x, y } = Rooms[roomId].player[i];
@@ -399,7 +401,6 @@ setInterval(async () => {
                     if (checkCircleCrossCircle({ x, y, r: PLAYER_R }, { x1: prop.x, y1: prop.y, r1: PROP_R })) {
                         Rooms[roomId].player[i].prop.push(prop.type);
                         Rooms[roomId].prop.splice(id, 1);
-                        // console.info(id, Rooms[roomId].player[i].prop, { x, y, r: PLAYER_R }, { x1: prop.x, y1: prop.y, r1: PROP_R })
                     }
                 }
             if ((Rooms[roomId].player[i].vweb_time || 0) > Date.now()) {
@@ -416,6 +417,12 @@ setInterval(async () => {
         }
     })());
     await Promise.all(tasks);
+    const todel = Object.keys(Rooms).filter((i) => Rooms[i].status === ROOM_STATUS.CLOSED
+        && (Rooms[i].endtime || 0) < Date.now() - 5 * 60 * 1000)
+    for (const i of todel) {
+        delete Rooms[i]
+        console.info(`房间 ${i} 已结束 3 分钟，自动删除房间。`)
+    }
     saveRooms();
     for (var socketId in Sockets) {
         var { roomId, socket, user } = Sockets[socketId];
