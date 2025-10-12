@@ -372,20 +372,22 @@ function UpdateTimeBoard() {
 }
 
 function UpdatePlayerList() {
-  const canClick = window.isWatching || (window.isAdmin && window.room_status === ROOM_STATUS.WAITING)
+  const canClick = window.isWatching || (window.isAdmin && window.room_status === ROOM_STATUS.WAITING);
   // ensure container exists
   if ($('.playerList').length === 0) {
     $('body').append('<div class="playerList"></div>');
   }
   const $list = $('.playerList');
 
-  // build a stable snapshot of the logical player list (order matters)
+  // build a stable snapshot of the logical player list (order matters) including score
   const snapshotArr = [];
   if (Array.isArray(window.roommates)) {
     for (const roommate of window.roommates) {
       const name = roommate.name;
       const isMarkedHunter = Array.isArray(window.markAsHunter) && window.markAsHunter.includes(name);
-      snapshotArr.push({ name, type: (isMarkedHunter || roommate.type === 'hunter' ? 'hunter' : 'fugitive') });
+      const type = (isMarkedHunter || roommate.type === 'hunter') ? 'hunter' : 'fugitive';
+      const score = Math.round(roommate.score || 0);
+      snapshotArr.push({ name, type, score });
     }
   }
   const snapshot = JSON.stringify({ list: snapshotArr, canClick });
@@ -399,13 +401,13 @@ function UpdatePlayerList() {
 
   for (const entry of snapshotArr) {
     const type = entry.type;
-    const displayName = entry.name
+    const displayName = entry.name;
     const name = type === 'hunter' ? entry.name.replace(/^Hunter/, '') : entry.name;
-    // build element
-    const $entry = $(`<div class="playerList-player ${type} playerName-${name}"></div>`);
-    $entry.text(displayName);
+    const score = entry.score;
+    const $entry = $(`<div class="playerList-player ${type} playerName-${name}"><span class="playerList-name"></span><span class="playerList-score"></span></div>`);
+    $entry.find('.playerList-name').text(displayName);
+    $entry.find('.playerList-score').text(score);
 
-    // admin can click to toggle (if window.changePlayerType exists)
     if (canClick) {
       $entry.addClass('canclick');
       $entry.css('cursor', 'pointer');

@@ -73,6 +73,29 @@ canvas {
     user-select: none;
 }
 
+.playerList-player {
+    word-break: break-word;
+}
+
+.playerList-name {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.playerList-score {
+    flex: 0 0 auto;
+    margin-left: 8px;
+    font-weight: 700;
+    color: #fff;
+    opacity: 0.95;
+    min-width: 38px;
+    text-align: right;
+    font-family: Consolas, monospace;
+    font-size: 13px;
+}
+
 /* role colors */
 .playerList-player.fugitive {
     background: linear-gradient(90deg,rgb(84, 135, 187),rgb(48, 113, 135));
