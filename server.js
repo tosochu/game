@@ -21,7 +21,7 @@ import {
 } from './lib/utils.js';
 import { dirname } from "path"
 import { fileURLToPath } from "url"
-import { DEFAULT_PROP_CNT } from './lib/prop.js';
+import { DEFAULT_PROP_CNT, PropsMap } from './lib/prop.js';
 
 const app = express();
 app.use(cors());
@@ -102,7 +102,7 @@ app.post('/api/user/login', (req, res) => {
     res.cookie('tosochu_game_cookie', cookie);
     res.json({});
 });
-app.get('/api/prop/load', (req, res) => { res.json(Props); });
+app.get('/api/prop/load', (req, res) => { res.json({ Props, PropsMap }); });
 app.post('/api/room/create', (req, res) => {
     if (req.body.length <= 0) return;
     if (!req.user) return res.json({ error: '请先登录。' });
@@ -267,6 +267,9 @@ app.ws('/room/:roomId', (socket, req) => {
             else if (pid === 'vweb') {
                 Rooms[roomId].player[req.user].vweb_time = Date.now() + 5000
             }
+            else if (pid === 'radar') {
+                Rooms[roomId].player[req.user].view_time = Date.now() + 10000
+            }
             saveRooms();
             return;
         }
@@ -392,15 +395,17 @@ setInterval(async () => {
                 }
             }
             var { x, y } = Rooms[roomId].player[i];
-            if (Rooms[roomId].player[i].type == 'fugitive') {
-                for (let id = 0; id < Rooms[roomId].prop.length; id++) {
-                    const prop = Rooms[roomId].prop[id]
-                    if (checkCircleCrossCircle({ x, y, r: PLAYER_R }, { x1: prop.x, y1: prop.y, r1: PROP_R })) {
+            for (let id = 0; id < Rooms[roomId].prop.length; id++) {
+                const prop = Rooms[roomId].prop[id]
+                if (checkCircleCrossCircle({ x, y, r: PLAYER_R }, { x1: prop.x, y1: prop.y, r1: PROP_R })) {
+                    if ((PropsMap[prop.type].is_hunter && Rooms[roomId].player[i].type === 'hunter' && i.length !== 3) || (PropsMap[prop.type].is_fugitive && Rooms[roomId].player[i].type === 'fugitive')) {
                         Rooms[roomId].player[i].prop.push(prop.type);
                         Rooms[roomId].prop.splice(id, 1);
                         Rooms[roomId].player[i].score += 0.8;
                     }
                 }
+            }
+            if (Rooms[roomId].player[i].type == 'fugitive') {
                 for (const hunId in Rooms[roomId].player) {
                     if (Rooms[roomId].player[hunId].type !== 'hunter') continue;
                     const { x: x0, y: y0 } = Rooms[roomId].player[hunId];

@@ -29,7 +29,10 @@ async function loadRoom() {
     "headers": { "content-type": "application/json" },
     "method": "GET",
   });
-  window.Props = await response.json();
+  const propsInfo = await response.json();
+  window.Props = propsInfo.Props;
+  window.PropsMap = propsInfo.PropsMap;
+  // for(const i of window.Props) console.log(i);
   window.loadedImages = 0;
   for (var prop of window.Props) {
     prop.image = new Image();
@@ -287,12 +290,22 @@ function DrawMyProps() {
 
 function DrawBorderTip() {
   var borderTip;
-  if (window.prop.length > 0 && !window.isWatching
-    && window.now.type != 'hunter') borderTip = 'blue';
-  if (!window.isWatching && window.now.type != 'hunter')
+  // for (auto)
+  let flg = false;
+  for (const i of window.prop) {
+    // console.log(i);
+    if ((window.now.type === 'hunter' && window.PropsMap[i.type].is_hunter) || (window.now.type === 'fugitive' && window.PropsMap[i.type].is_fugitive)) {
+      borderTip = 'blue';
+    }
+
+  }
+  if(window.isWatching) borderTip = undefined;
+  // if (window.prop.length > 0 && !window.isWatching
+  //   && (window.now.type !== 'hunter')) borderTip = 'blue';
+  if (!window.isWatching)
     for (var user in window.player) {
       var player = window.player[user];
-      if (player.type == 'hunter') borderTip = 'red';
+      if (player.type !== window.now.type) borderTip = 'red';
     };
   if (!borderTip) return;
   setColor('transparent', borderTip);
@@ -489,6 +502,7 @@ $(document).ready(() => {
         'i': 'ice',
         'w': 'web',
         'v': 'vweb',
+        'r': 'radar',
       }
       const pid = PropMapping[e.key.toLowerCase()];
       if (!pid || !window.now.prop.includes(pid)) return;
