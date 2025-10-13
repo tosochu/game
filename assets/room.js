@@ -46,7 +46,6 @@ async function loadRoom() {
   const propsInfo = await response.json();
   window.Props = propsInfo.Props;
   window.PropsMap = propsInfo.PropsMap;
-  // for(const i of window.Props) console.log(i);
   window.loadedImages = 0;
   for (var prop of window.Props) {
     prop.image = new Image();
@@ -251,7 +250,6 @@ function DrawMyProps() {
   let pos = windowWidth() / 2 - (cntunique - 1) / 2 * 120
   let noHover = true
   for (var prop in uniqueProp) {
-    // pos = windowWidth() / 2
     var x = pos, y = windowHeight() - 100;
     pos += 120
     setColor('#228032', '#55d36a');
@@ -304,18 +302,13 @@ function DrawMyProps() {
 
 function DrawBorderTip() {
   var borderTip;
-  // for (auto)
   let flg = false;
   for (const i of window.prop) {
-    // console.log(i);
     if ((window.now.type === 'hunter' && window.PropsMap[i.type].is_hunter) || (window.now.type === 'fugitive' && window.PropsMap[i.type].is_fugitive)) {
       borderTip = 'blue';
     }
-
   }
   if(window.isWatching) borderTip = undefined;
-  // if (window.prop.length > 0 && !window.isWatching
-  //   && (window.now.type !== 'hunter')) borderTip = 'blue';
   if (!window.isWatching)
     for (var user in window.player) {
       var player = window.player[user];
@@ -350,7 +343,7 @@ function DrawSmallMap() {
   function getX(x) { return mapX + x / MAP_WIDTH * mapW; }
   function getY(y) { return mapY + y / MAP_HEIGHT * mapH; }
   function getWidth(l) { return l / MAP_WIDTH * mapW; }
-  setColor('transparent', '#88888888');// 
+  setColor('transparent', '#88888888');
   drawRoundRectangle(mapX, mapY, mapW, mapH, 5);
   setColor('green', 'transparent');
   this.ctx.lineWidth = 1;
@@ -542,3 +535,4 @@ $(document).ready(() => {
   }, 50);
   loadRoom();
 });
+
