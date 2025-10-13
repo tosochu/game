@@ -1,12 +1,26 @@
-const GAME_STAGE = {
-  LOADING_ROOM: 1,
-  PLAYING: 2,
-};
 const ROOM_STATUS = {
   WAITING: 1,
   PLAYING: 2,
   CLOSED: 3,
 };
+const PLAYER_STATUS = {
+  FREE: 1,
+  INROOM: 2,
+};
+const PLAYER_STATUS_IN_ROOM = {
+  RUNNING: 1,
+  KILLED_BY_HUNTER: 2,
+};
+const HUNTER_STATUS = {
+  RANDOM_WALK: 1,
+  RUN_AFTER_PLAYER: 2,
+  FROZEN: 3,
+};
+const GAME_STAGE = {
+  LOADING_ROOM: 1,
+  PLAYING: 2,
+};
+
 const VIEW_R = 500;
 const BlockLength = 200;
 
@@ -29,7 +43,9 @@ async function loadRoom() {
     "headers": { "content-type": "application/json" },
     "method": "GET",
   });
-  window.Props = await response.json();
+  const propsInfo = await response.json();
+  window.Props = propsInfo.Props;
+  window.PropsMap = propsInfo.PropsMap;
   window.loadedImages = 0;
   for (var prop of window.Props) {
     prop.image = new Image();
@@ -234,7 +250,6 @@ function DrawMyProps() {
   let pos = windowWidth() / 2 - (cntunique - 1) / 2 * 120
   let noHover = true
   for (var prop in uniqueProp) {
-    // pos = windowWidth() / 2
     var x = pos, y = windowHeight() - 100;
     pos += 120
     setColor('#228032', '#55d36a');
@@ -287,12 +302,17 @@ function DrawMyProps() {
 
 function DrawBorderTip() {
   var borderTip;
-  if (window.prop.length > 0 && !window.isWatching
-    && window.now.type != 'hunter') borderTip = 'blue';
-  if (!window.isWatching && window.now.type != 'hunter')
+  let flg = false;
+  for (const i of window.prop) {
+    if ((window.now.type === 'hunter' && window.PropsMap[i.type].is_hunter) || (window.now.type === 'fugitive' && window.PropsMap[i.type].is_fugitive)) {
+      borderTip = 'blue';
+    }
+  }
+  if(window.isWatching) borderTip = undefined;
+  if (!window.isWatching)
     for (var user in window.player) {
       var player = window.player[user];
-      if (player.type == 'hunter') borderTip = 'red';
+      if (player.type !== window.now.type) borderTip = 'red';
     };
   if (!borderTip) return;
   setColor('transparent', borderTip);
@@ -333,14 +353,16 @@ function DrawSmallMap() {
     getWidth(BlockLength * 16),
     getWidth(BlockLength * 6),
   );
-  setColor('transparent', 'blue');
   if (window.settings.displayTeammates)
     for (var user in window.player) {
       var player = window.player[user];
-      if (window.settings.displayAll || player.type == 'fugitive')
+      if(player.status !== PLAYER_STATUS_IN_ROOM.KILLED_BY_HUNTER) {
+        if(player.type == 'fugitive') setColor('transparent', 'blue');
+        else setColor('transparent', 'red');
         drawCircle(getX(player.x), getY(player.y), getWidth(200));
+      }
     }
-  setColor('transparent', 'red');
+  setColor('transparent', 'green');
   drawCircle(getX(window.now.x), getY(window.now.y), getWidth(200));
 }
 
@@ -489,6 +511,7 @@ $(document).ready(() => {
         'i': 'ice',
         'w': 'web',
         'v': 'vweb',
+        'r': 'radar',
       }
       const pid = PropMapping[e.key.toLowerCase()];
       if (!pid || !window.now.prop.includes(pid)) return;
@@ -512,3 +535,4 @@ $(document).ready(() => {
   }, 50);
   loadRoom();
 });
+
