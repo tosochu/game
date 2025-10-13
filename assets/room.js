@@ -1,12 +1,26 @@
-const GAME_STAGE = {
-  LOADING_ROOM: 1,
-  PLAYING: 2,
-};
 const ROOM_STATUS = {
   WAITING: 1,
   PLAYING: 2,
   CLOSED: 3,
 };
+const PLAYER_STATUS = {
+  FREE: 1,
+  INROOM: 2,
+};
+const PLAYER_STATUS_IN_ROOM = {
+  RUNNING: 1,
+  KILLED_BY_HUNTER: 2,
+};
+const HUNTER_STATUS = {
+  RANDOM_WALK: 1,
+  RUN_AFTER_PLAYER: 2,
+  FROZEN: 3,
+};
+const GAME_STAGE = {
+  LOADING_ROOM: 1,
+  PLAYING: 2,
+};
+
 const VIEW_R = 500;
 const BlockLength = 200;
 
@@ -336,7 +350,7 @@ function DrawSmallMap() {
   function getX(x) { return mapX + x / MAP_WIDTH * mapW; }
   function getY(y) { return mapY + y / MAP_HEIGHT * mapH; }
   function getWidth(l) { return l / MAP_WIDTH * mapW; }
-  setColor('transparent', '#88888888');
+  setColor('transparent', '#88888888');// 
   drawRoundRectangle(mapX, mapY, mapW, mapH, 5);
   setColor('green', 'transparent');
   this.ctx.lineWidth = 1;
@@ -346,14 +360,16 @@ function DrawSmallMap() {
     getWidth(BlockLength * 16),
     getWidth(BlockLength * 6),
   );
-  setColor('transparent', 'blue');
   if (window.settings.displayTeammates)
     for (var user in window.player) {
       var player = window.player[user];
-      if (window.settings.displayAll || player.type == 'fugitive')
+      if(player.status !== PLAYER_STATUS_IN_ROOM.KILLED_BY_HUNTER) {
+        if(player.type == 'fugitive') setColor('transparent', 'blue');
+        else setColor('transparent', 'red');
         drawCircle(getX(player.x), getY(player.y), getWidth(200));
+      }
     }
-  setColor('transparent', 'red');
+  setColor('transparent', 'green');
   drawCircle(getX(window.now.x), getY(window.now.y), getWidth(200));
 }
 
