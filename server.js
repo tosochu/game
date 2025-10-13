@@ -250,7 +250,7 @@ app.ws('/room/:roomId', (socket, req) => {
                 if (nearest) {
                     nearest.data = nearest.data || {};
                     nearest.data.status = HUNTER_STATUS.FROZEN;
-                    nearest.data.frozenUntil = Math.max(nearest.data.frozenUntil || 0, Date.now()) + 3000;
+                    nearest.data.frozenUntil = Math.max(nearest.data.frozenUntil || 0, Date.now()) + 2000;
                     nearest.frozenUntil = nearest.data.frozenUntil;
                     nearest.v = 0;
                     nearest.d = { x: 0, y: 0 };
