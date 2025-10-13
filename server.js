@@ -251,6 +251,7 @@ app.ws('/room/:roomId', (socket, req) => {
                     nearest.data = nearest.data || {};
                     nearest.data.status = HUNTER_STATUS.FROZEN;
                     nearest.data.frozenUntil = Math.max(nearest.data.frozenUntil || 0, Date.now()) + 3000;
+                    nearest.frozenUntil = nearest.data.frozenUntil;
                     nearest.v = 0;
                     nearest.d = { x: 0, y: 0 };
                 }
@@ -357,7 +358,7 @@ setInterval(async () => {
             for (var item of Rooms[roomId].items)
                 if (item.type == 'web' && item.owner !== i && checkCircleCrossItem({ x, y, r: PLAYER_R }, item, true)) maxv /= 5;
             maxv = Math.max(maxv, 0.075 / 12);
-            if (Rooms[roomId].player[i].type == 'hunter') maxv *= 1.2;
+            if (Rooms[roomId].player[i].type == 'hunter') maxv *= 1.3;
             const SmallStep = 3;
             var dis = 0;
             while (dis <= v * maxv) {
@@ -438,6 +439,7 @@ setInterval(async () => {
                 const { type, score } = Rooms[roomId].player[name]
                 roommates.push({ name: (type === 'hunter' ? `Hunter${name}` : name), type, score });
             }
+            roommates = roommates.sort((x, y) => y.score - x.score);
             if (Rooms[roomId].player[user].status == PLAYER_STATUS_IN_ROOM.RUNNING)
                 socket.send(JSON.stringify(Object.assign(
                     { now: Rooms[roomId].player[user], roomId, status, startAt, roommates, isWatching: false },

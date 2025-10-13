@@ -215,7 +215,7 @@ function DrawShadow() {
       if (tmp < 0) tmp += Math.PI * 2;
       this.ctx.arc(
         windowWidth() / 2, windowHeight() / 2,
-        VIEW_R * 2, ArcSine(x1, y1), ArcSine(x2, y2),
+        (window.now.type === 'hunter' ? VIEW_R * 2 : VIEW_R) * 2, ArcSine(x1, y1), ArcSine(x2, y2),
         tmp > Math.PI
       );
       this.ctx.fill();
@@ -441,7 +441,7 @@ function Draw() {
     this.ctx.arc(
       windowWidth() / 2,
       windowHeight() / 2,
-      VIEW_R, 0, Math.PI * 2
+      window.now.type === 'hunter' ? VIEW_R * 2 : VIEW_R, 0, Math.PI * 2
     );
     this.ctx.clip();
     setColor('transparent', '#fff');
