@@ -10,7 +10,6 @@
   "directories": {
     "lib": "lib"
   },
-  "devDependencies": {},
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tosochu/game.git"
@@ -33,6 +32,7 @@
     "fs": "^0.0.1-security",
     "fs-extra": "^11.1.1",
     "random-string": "^0.2.0",
+    "superagent": "^10.2.3",
     "yamljs": "^0.3.0"
   }
 }

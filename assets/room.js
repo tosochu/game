@@ -301,19 +301,16 @@ function DrawMyProps() {
 }
 
 function DrawBorderTip() {
-  var borderTip;
-  let flg = false;
+  let borderTip;
   for (const i of window.prop) {
     if ((window.now.type === 'hunter' && window.PropsMap[i.type].is_hunter) || (window.now.type === 'fugitive' && window.PropsMap[i.type].is_fugitive)) {
       borderTip = 'blue';
     }
   }
-  if(window.isWatching) borderTip = undefined;
-  if (!window.isWatching)
-    for (var user in window.player) {
-      var player = window.player[user];
-      if (player.type !== window.now.type) borderTip = 'red';
-    };
+  for (var user in window.player) {
+    var player = window.player[user];
+    if (player.type !== window.now.type) borderTip = 'red';
+  };
   if (!borderTip) return;
   setColor('transparent', borderTip);
   this.ctx.globalAlpha = 0.015 * (1 + Math.sin(new Date().getTime() / 100));
@@ -356,8 +353,8 @@ function DrawSmallMap() {
   if (window.settings.displayTeammates)
     for (var user in window.player) {
       var player = window.player[user];
-      if(player.status !== PLAYER_STATUS_IN_ROOM.KILLED_BY_HUNTER) {
-        if(player.type == 'fugitive') setColor('transparent', 'blue');
+      if (player.status !== PLAYER_STATUS_IN_ROOM.KILLED_BY_HUNTER) {
+        if (player.type == 'fugitive') setColor('transparent', 'blue');
         else setColor('transparent', 'red');
         drawCircle(getX(player.x), getY(player.y), getWidth(200));
       }
@@ -535,4 +532,3 @@ $(document).ready(() => {
   }, 50);
   loadRoom();
 });
-

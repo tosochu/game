@@ -16,8 +16,9 @@ import {
     checkCircleCrossItem,
     checkCircleCrossRectangle,
     generateRoom, generateHunters,
-    PROP_R, Props, randomProp, generateProps,
+    PROP_R, Props, generateProps,
     getAllCanSee, planPath,
+    server_log,
 } from './lib/utils.js';
 import { dirname } from "path"
 import { fileURLToPath } from "url"
@@ -80,6 +81,7 @@ app.post('/api/user/register', (req, res) => {
     if (!(/^.{6,256}/.test(password)))
         return res.json({ error: '密码太菜，容易被盗。' });
     var salt = randomString({ length: 64 });
+    server_log(`注册了新用户 ${username}。`);
     Users[username] = {
         username, salt,
         hash: hashPassword(password, salt),
@@ -96,6 +98,7 @@ app.post('/api/user/login', (req, res) => {
     var { salt, hash } = Users[username];
     if (hashPassword(password, salt) != hash)
         return res.json({ error: '密码错误。' });
+    server_log(`用户 ${username} 登录成功。`);
     var cookie = randomString({ length: 64 });
     Users[username].cookie = cookie; saveUsers();
     res.cookie('tosochu_game_name', username);
@@ -120,7 +123,7 @@ app.post('/api/room/create', (req, res) => {
     Rooms[roomId].admin = req.user;
     Rooms[roomId].lastActive = Date.now();
     Rooms[roomId].prop = [];
-    console.log(`${req.user} 创建了房间 ${roomId}。`);
+    server_log(`${req.user} 创建了房间 ${roomId}。`);
     saveRooms();
     res.json({ roomId: roomId });
 });
@@ -130,6 +133,7 @@ app.post('/api/room/load', (req, res) => {
     if (!Rooms[roomId]) return res.json({ error: '房间不存在。' });
     if (!Rooms[roomId].player[req.user]) {
         if (Rooms[roomId].status != ROOM_STATUS.WAITING) return res.json({ error: '房间已经开始游戏。' });
+        server_log(`用户 ${req.user} 加入了房间。`);
         Rooms[roomId].player[req.user] = {
             x: RandInt(MAP_WIDTH / 2 - BLOCK_LENGTH * 7, MAP_WIDTH / 2 + BLOCK_LENGTH * 7),
             y: RandInt(MAP_HEIGHT / 2 - BLOCK_LENGTH * 2, MAP_HEIGHT / 2 + BLOCK_LENGTH * 2),
@@ -167,7 +171,7 @@ app.post('/api/room/start', (req, res) => {
         generateHunters(hunter, Rooms[roomId].items));
     Rooms[roomId].startAt = new Date().getTime();
     Rooms[roomId].status = ROOM_STATUS.PLAYING;
-    console.log(`房间 ${roomId} 开始了游戏。${hunter} 个 Hunter。`);
+    server_log(`房间 ${roomId} 开始了游戏。${hunter} 个 Hunter。`);
     Rooms[roomId].prop = generateProps(DEFAULT_PROP_CNT);
     const fugitiveList = [];
     for (var player in Rooms[roomId].player) {
@@ -179,7 +183,6 @@ app.post('/api/room/start', (req, res) => {
     Rooms[roomId].player[fugitiveList[0]].pre = fugitiveList[fugitiveList.length - 1];
     saveRooms(); res.json({});
 });
-// Add: return a list of rooms with basic info
 app.get('/api/room/list', (req, res) => {
     const list = [];
     for (const id in Rooms) {
@@ -305,7 +308,7 @@ setInterval(async () => {
         if (Rooms[roomId].lastActive < Date.now() - 30000) {
             Rooms[roomId].status = ROOM_STATUS.CLOSED;
             Rooms[roomId].endAt = Date.now();
-            console.log(`房间 ${roomId} 因为不活跃而结束了游戏。`);
+            server_log(`房间 ${roomId} 因为不活跃而结束了游戏。`);
             return;
         }
         for (var i in Rooms[roomId].player) {
@@ -390,7 +393,7 @@ setInterval(async () => {
                         && Rooms[roomId].player[player].type == 'fugitive') allDie = false;
                 if (allDie) {
                     Rooms[roomId].status = ROOM_STATUS.CLOSED;
-                    console.log(`房间 ${roomId} 结束了游戏。`);
+                    server_log(`房间 ${roomId} 结束了游戏。`);
                     Rooms[roomId].endAt = Date.now();
                 }
             }
@@ -431,7 +434,7 @@ setInterval(async () => {
     const todel = Object.keys(Rooms).filter((i) => Rooms[i].status === ROOM_STATUS.CLOSED && (Rooms[i].endAt || 0) < Date.now() - 5 * 60 * 1000)
     for (const i of todel) {
         delete Rooms[i]
-        console.info(`房间 ${i} 已结束 3 分钟，自动删除房间。`)
+        server_log(`房间 ${i} 已结束 3 分钟，自动删除房间。`)
     }
     saveRooms();
     for (var socketId in Sockets) {
@@ -462,5 +465,5 @@ setInterval(async () => {
 }, 50);
 
 app.listen(6876, () => {
-    console.log('Port :6876 is opened');
+    server_log('Port :6876 is opened');
 });
