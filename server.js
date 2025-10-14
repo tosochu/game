@@ -7,6 +7,7 @@ import expressWS from 'express-ws';
 import { readFileSync, existsSync, writeFileSync } from 'fs';
 import { ensureDirSync } from 'fs-extra';
 import randomString from 'random-string';
+import superagent from 'superagent';
 import {
     hashPassword,
     ROOM_STATUS, PLAYER_STATUS, PLAYER_STATUS_IN_ROOM, HUNTER_STATUS,
@@ -35,11 +36,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 var Users = {}, Rooms = {}, Sockets = {};
+const authInfo = { enable: false, data: {} };
 ensureDirSync('db');
 if (existsSync('db/user.json'))
     Users = JSON.parse(readFileSync('db/user.json', 'utf8'));
 if (existsSync('db/room.json'))
     Rooms = JSON.parse(readFileSync('db/room.json', 'utf8'));
+if (existsSync('db/auth.json')) {
+    authInfo.enable = true;
+    authInfo.data = JSON.parse(readFileSync('db/auth.json', 'utf8'));
+}
 function saveUsers() {
     writeFileSync('db/user.json', JSON.stringify(Users));
 }
@@ -68,11 +74,10 @@ function RegisterPageHandler(pathname, filename) {
     });
 }
 RegisterPageHandler('/login', 'user_login.html');
-RegisterPageHandler('/register', 'user_register.html');
-RegisterPageHandler('/', 'room_create.html');
-RegisterPageHandler('/room/:roomId', 'room_play.html');
+RegisterPageHandler('/register', authInfo.enable ? 'user_register_luogu.html' : 'user_register.html');
 
 app.post('/api/user/register', (req, res) => {
+    if (authInfo.enable) return res.json({ error: '禁止普通注册方式。' });
     var { username, password } = req.body;
     if (!username || !password) return;
     if (Users[username]) return res.json({ error: '用户名重复。' });
@@ -81,6 +86,53 @@ app.post('/api/user/register', (req, res) => {
     if (!(/^.{6,256}/.test(password)))
         return res.json({ error: '密码太菜，容易被盗。' });
     var salt = randomString({ length: 64 });
+    server_log(`注册了新用户 ${username}。`);
+    Users[username] = {
+        username, salt,
+        hash: hashPassword(password, salt),
+        status: PLAYER_STATUS.FREE,
+        room: '',
+    };
+    saveUsers();
+    res.json({});
+});
+const token_list = [];
+app.post('/api/user/register/luogu/generate', (req, res) => {
+    if (!authInfo.enable) return res.json({ error: '未开启洛谷账号绑定。' });
+    const token = randomString({ length: 16 });
+    token_list.push(token);
+    if (token_list.length > 1000) {
+        token_list.splice(0, 0);
+    }
+    res.json({ token });
+});
+async function checkLuogu(uid, token) {
+    const response = await superagent.get(`https://www.luogu.com.cn/user/${uid}`)
+        .set('Cookie', `__client_id=${authInfo.data.client_id}; _uid=${authInfo.data.uid}; C3VK=439c72`)
+    const json = response.text.split('<script id="lentille-context" type="application/json">')[1].split('</script>')[0];
+    const data = JSON.parse(json).data;
+    const value = data.user.slogan;
+    if (value.includes(token)) return data.user.name;
+    return null;
+}
+app.post('/api/user/register/luogu', async (req, res) => {
+    if (!authInfo.enable) return res.json({ error: '未开启洛谷账号绑定。' });
+    const { uid, password, token } = req.body;
+    if (!uid || !password || !token) return;
+    if (!/^\d+?$/.test(uid)) return res.json({ error: '不合法的 UID。' });
+    if (!(/^.{6,256}/.test(password))) return res.json({ error: '密码太菜，容易被盗。' });
+    if (!token_list.includes(token)) return 
+    let result;
+    try {
+        result = await checkLuogu(uid, token);
+    }
+    catch (e) {
+        return res.json({ error: '网络错误。' });
+    }
+    if (!result) return res.json({ error: '验证失败。' });
+    const username = result;
+    if (!(/^[a-zA-Z0-9_]{4,16}/.test(username))) return res.json({ error: '用户名不合法。' });
+    const salt = randomString({ length: 64 });
     server_log(`注册了新用户 ${username}。`);
     Users[username] = {
         username, salt,
@@ -105,6 +157,17 @@ app.post('/api/user/login', (req, res) => {
     res.cookie('tosochu_game_cookie', cookie);
     res.json({});
 });
+
+app.all('*', (req, res, next) => {
+    if (authInfo.enable && authInfo.data.force_login && !req.user && !['/login', '/register'].includes(req.url)) {
+        return res.redirect('/login');
+    }
+    next();
+});
+
+RegisterPageHandler('/', 'room_create.html');
+RegisterPageHandler('/room/:roomId', 'room_play.html');
+
 app.get('/api/prop/load', (req, res) => { res.json({ Props, PropsMap }); });
 app.post('/api/room/create', (req, res) => {
     if (req.body.length <= 0) return;
@@ -434,7 +497,7 @@ setInterval(async () => {
     const todel = Object.keys(Rooms).filter((i) => Rooms[i].status === ROOM_STATUS.CLOSED && (Rooms[i].endAt || 0) < Date.now() - 5 * 60 * 1000)
     for (const i of todel) {
         delete Rooms[i]
-        server_log(`房间 ${i} 已结束 3 分钟，自动删除房间。`)
+        server_log(`房间 ${i} 已结束 3 分钟，自动删除房间。`);
     }
     saveRooms();
     for (var socketId in Sockets) {
@@ -444,8 +507,8 @@ setInterval(async () => {
             socket.send(JSON.stringify({ status: ROOM_STATUS.CLOSED }));
         else {
             for (const name in Rooms[roomId].player) {
-                const { type, score } = Rooms[roomId].player[name]
-                roommates.push({ name: (type === 'hunter' ? `Hunter${name}` : name), type, score });
+                const { type, score, status } = Rooms[roomId].player[name]
+                roommates.push({ name: (type === 'hunter' ? `Hunter${name}` : name), type, score, status });
             }
             roommates = roommates.sort((x, y) => y.score - x.score);
             if (Rooms[roomId].player[user].status == PLAYER_STATUS_IN_ROOM.RUNNING)

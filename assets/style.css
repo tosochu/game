@@ -97,11 +97,14 @@ canvas {
 }
 
 /* role colors */
-.playerList-player.fugitive {
+.playerList-player.type-fugitive {
     background: linear-gradient(90deg,rgb(84, 135, 187),rgb(48, 113, 135));
     border: 1px solid rgba(255,255,255,0.03);
 }
-.playerList-player.hunter {
+.playerList-player.type-fugitive.dead-true {
+    background: linear-gradient(90deg,rgb(141, 143, 144),rgb(182, 187, 189));
+}
+.playerList-player.type-hunter {
     background: linear-gradient(90deg,#642,#421);
     border: 1px solid rgba(255,255,255,0.03);
 }

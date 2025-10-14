@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <script src="/asset/jquery-3.7.0.min.js"></script>
+  <script src="/asset/script/user.js"></script>
+</head>
+
+<body class="page-userRegisterLuogu">
+  <p style="color: red;">请使用普通用户可以访问个人主页的洛谷账号绑定完成注册。</p>
+  <p style="color: red;">第一步：下方点击 Generate 获取 Token。</p>
+  <p style="color: red;">第二步：在个人主页中的个性签名中添加下面的 Token 子串（只要保证有这个 Token 作为子串即可）；</p>
+  <p style="color: red;">第三步：在下方填写洛谷用户 ID 和密码（为本系统上登录用密码，而不是锣鼓密码）。</p>
+  <p style="color: red;">第四步：点击 Register 注册。如果提示“网络错误”请稍后再试或者联系管理员。</p>
+  <p style="color: red;">如果需要重置密码，使用同样的洛谷账号重新完成注册流程即可。</p>
+  <p>Token: <input placeholder="Token" class="token" disabled> <button class="generate">Generate</button></p>
+  <p>洛谷 UID: <input placeholder="Luogu UID" class="luoguuid"></p>
+  <p>Password: <input placeholder="Password" type="password" class="password"></p>
+  <p>Repeat password: <input placeholder="Repeat Password" type="password" class="repeat"></p>
+  <button class="register">Register</button>
+</body>
+
+</html>

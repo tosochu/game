@@ -194,11 +194,13 @@ function DrawPlayer() {
   for (var user in window.player) {
     var player = window.player[user];
     setColor('transparent', player.type == 'fugitive' ? 'blue' : 'red');
+    if (player.status === PLAYER_STATUS_IN_ROOM.KILLED_BY_HUNTER) this.ctx.globalAlpha = 0.5;
     drawCircle(
       windowWidth() / 2 + player.x - window.now.x,
       windowHeight() / 2 + player.y - window.now.y,
       20,
     );
+    if (player.status === PLAYER_STATUS_IN_ROOM.KILLED_BY_HUNTER) this.ctx.globalAlpha = 1;
     this.ctx.lineWidth = 1;
     setColor('#000', '#fff');
     drawCenterText(
@@ -402,11 +404,12 @@ function UpdatePlayerList() {
   const snapshotArr = [];
   if (Array.isArray(window.roommates)) {
     for (const roommate of window.roommates) {
+      let isDead = roommate.status === PLAYER_STATUS_IN_ROOM.KILLED_BY_HUNTER;
       const name = roommate.name;
       const isMarkedHunter = Array.isArray(window.markAsHunter) && window.markAsHunter.includes(name);
       const type = (isMarkedHunter || roommate.type === 'hunter') ? 'hunter' : 'fugitive';
       const score = Math.round(roommate.score || 0);
-      snapshotArr.push({ name, type, score });
+      snapshotArr.push({ name, type, score, isDead });
     }
   }
   const snapshot = JSON.stringify({ list: snapshotArr, canClick });
@@ -423,7 +426,8 @@ function UpdatePlayerList() {
     const displayName = entry.name;
     const name = type === 'hunter' ? entry.name.replace(/^Hunter/, '') : entry.name;
     const score = entry.score;
-    const $entry = $(`<div class="playerList-player ${type} playerName-${name}"><span class="playerList-name"></span><span class="playerList-score"></span></div>`);
+    const isDead = entry.isDead;
+    const $entry = $(`<div class="playerList-player type-${type} dead-${isDead} playerName-${name}"><span class="playerList-name"></span><span class="playerList-score"></span></div>`);
     $entry.find('.playerList-name').text(displayName);
     $entry.find('.playerList-score').text(score);
 
